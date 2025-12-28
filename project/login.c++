@@ -4,11 +4,11 @@
 #include <string>
 #include <vector>
 
-// --- IMPORTANT: HEADER ORDER MATTERS ---
+// --- HEADER ORDER MATTERS ---
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <windows.h> // Must be AFTER winsock2.h
-// ---------------------------------------
+#include <windows.h> 
+// ----------------------------
 
 #include <sqlext.h>
 #include <sqltypes.h>
@@ -26,22 +26,33 @@ const string DB_PASS = "admin@1234";
 const int SERVER_PORT = 8080;
 
 // --- DB HELPER ---
-bool AttemptLogin(SQLHDBC sqlConnHandle, string user, string pass) {
+bool AttemptLogin(SQLHDBC sqlConnHandle, string user, string pass, string &outFullName) {
     SQLHSTMT sqlStmtHandle;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &sqlStmtHandle);
-    string query = "SELECT user_id FROM Users WHERE username = '" + user + "' AND password_hash = '" + pass + "';";
+
+    string query = "SELECT full_name FROM Users WHERE username = '" + user + "' AND password_hash = '" + pass + "';";
+
     if (SQLExecDirectA(sqlStmtHandle, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) {
-        SQLFreeHandle(SQL_HANDLE_STMT, sqlStmtHandle); return false;
+        SQLFreeHandle(SQL_HANDLE_STMT, sqlStmtHandle); 
+        return false;
     }
-    bool success = (SQLFetch(sqlStmtHandle) == SQL_SUCCESS);
-    SQLFreeHandle(SQL_HANDLE_STMT, sqlStmtHandle);
-    return success;
+
+    if (SQLFetch(sqlStmtHandle) == SQL_SUCCESS) {
+        char nameBuffer[100];
+        SQLGetData(sqlStmtHandle, 1, SQL_C_CHAR, nameBuffer, sizeof(nameBuffer), NULL);
+        outFullName = nameBuffer;
+        SQLFreeHandle(SQL_HANDLE_STMT, sqlStmtHandle);
+        return true;
+    } else {
+        SQLFreeHandle(SQL_HANDLE_STMT, sqlStmtHandle);
+        return false;
+    }
 }
 
 // --- FILE HELPER ---
-string LoadHTMLFile(string filename) {
-    ifstream file(filename);
-    if (!file) return "<h1>404 Error - File Not Found (" + filename + ")</h1>";
+string LoadFile(string filename) {
+    ifstream file(filename, ios::binary); // Binary mode is safer for all file types
+    if (!file) return "";
     stringstream buffer; buffer << file.rdbuf(); return buffer.str();
 }
 
@@ -82,12 +93,12 @@ int main() {
     listen(serverSocket, SOMAXCONN);
 
     cout << "Server started on Port " << SERVER_PORT << "..." << endl;
-
-    // --- NEW FEATURE: AUTO-OPEN BROWSER ---
-    // This command tells Windows to open the default browser to your local server
     cout << "Launching Browser..." << endl;
-    ShellExecute(0, 0, "http://localhost:8080", 0, 0, SW_SHOW);
-    // --------------------------------------
+    
+    // Auto-launch browser
+    ShellExecuteA(0, 0, "http://localhost:8080", 0, 0, SW_SHOW);
+
+    string currentUserFullName = "Guest"; 
 
     // 3. LISTEN LOOP
     while (true) {
@@ -97,31 +108,47 @@ int main() {
         string request(buffer);
         string response;
 
+        // --- ROUTING LOGIC ---
+
+        // 1. LOGIN PAGE
         if (request.find("GET / ") != string::npos || request.find("GET /login.html") != string::npos) {
-            string html = LoadHTMLFile("login.html");
+            string html = LoadFile("login.html");
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + html;
         } 
+        // 2. PROCESS LOGIN
         else if (request.find("POST /login") != string::npos) {
             string body = request.substr(request.find("\r\n\r\n") + 4);
             string u, p; ParsePostData(body, u, p);
             
-            if (AttemptLogin(sqlConnHandle, u, p)) {
-                // Login Success -> Go to Dashboard
-                response = "HTTP/1.1 303 See Other\r\nLocation: /index.html\r\n\r\n";
+            if (AttemptLogin(sqlConnHandle, u, p, currentUserFullName)) {
+                cout << "Login Success: " << currentUserFullName << endl;
+                response = "HTTP/1.1 303 See Other\r\nLocation: /home.html\r\n\r\n";
             } else {
-                // Login Fail -> Reload with Alert
-                string html = LoadHTMLFile("login.html");
-                html += "<script>alert('Login Failed: Check Credentials');</script>";
+                string html = LoadFile("login.html");
+                html += "<script>alert('Login Failed: Invalid Credentials');</script>";
                 response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + html;
             }
         }
-        else if (request.find("GET /index.html") != string::npos) {
-            string html = LoadHTMLFile("index.html");
+        // 3. HOME PAGE (Dashboard)
+        else if (request.find("GET /home.html") != string::npos) {
+            string html = LoadFile("home.html");
+            // Inject User Name
+            string placeholder = "Welcome, Gan Yu Lun";
+            size_t pos = html.find(placeholder);
+            if (pos != string::npos) {
+                html.replace(pos, placeholder.length(), "Welcome, " + currentUserFullName);
+            }
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + html;
         }
-        else if (request.find("GET /template.css") != string::npos) {
-            string css = LoadHTMLFile("template.css");
+        // 4. CSS FILE
+        else if (request.find("GET /dashboard.css") != string::npos) {
+            string css = LoadFile("dashboard.css");
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n" + css;
+        }
+        // 5. JAVASCRIPT FILE (NEW - Critical for Tabs/Map)
+        else if (request.find("GET /script.js") != string::npos) {
+            string js = LoadFile("script.js");
+            response = "HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\n\r\n" + js;
         }
 
         send(clientSocket, response.c_str(), response.length(), 0);
