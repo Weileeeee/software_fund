@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | UniSafe 360</title>
+    <!-- Link to CSS -->
+    <link rel="stylesheet" href="dashboard.css">
+    <!-- Boxicons for Icons -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+</head>
+<body>
+
+    <!-- SIDEBAR NAVIGATION -->
+    <nav class="sidebar">
+        <div class="logo-details">
+            <i class='bx bxs-shield-plus'></i>
+            <span class="logo_name">UniSafe 360</span>
+        </div>
+        <ul class="nav-links">
+            <li>
+                <a href="#" class="active">
+                    <i class='bx bxs-dashboard'></i>
+                    <span class="link_name">Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class='bx bxs-map'></i>
+                    <span class="link_name">Live Map</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class='bx bxs-bell-ring'></i>
+                    <span class="link_name">Alerts</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class='bx bxs-user-check'></i>
+                    <span class="link_name">Evacuation</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class='bx bxs-report'></i>
+                    <span class="link_name">Report Incident</span>
+                </a>
+            </li>
+            <li class="log_out">
+                <a href="login.html">
+                    <i class='bx bx-log-out'></i>
+                    <span class="link_name">Log Out</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- MAIN CONTENT AREA -->
+    <section class="home-section">
+        <!-- TOP NAVIGATION HEADER -->
+        <nav class="top-navbar">
+            <div class="sidebar-button">
+                <i class='bx bx-menu sidebarBtn'></i>
+                <span class="dashboard">Student Dashboard</span>
+            </div>
+            <div class="profile-details">
+                <!-- In C++, you would inject the user's name here -->
+                <span class="admin_name">Welcome, welcomemat</span> 
+                <i class='bx bxs-user-circle'></i>
+            </div>
+        </nav>
+
+        <!-- DASHBOARD CONTENT -->
+        <div class="home-content">
+
+            <!-- 1. EMERGENCY STATUS CARD (SRS Page 4) -->
+            <div class="status-banner normal">
+                <div class="status-icon"><i class='bx bxs-check-shield'></i></div>
+                <div class="status-text">
+                    <h3>Current Campus Status: NORMAL</h3>
+                    <p>No active threats detected. Proceed with daily activities.</p>
+                </div>
+            </div>
+
+            <div class="overview-boxes">
+                
+                <!-- 2. QUICK ACTION: I AM SAFE (SRS Page 4 - "Mark status as Safe") -->
+                <div class="box">
+                    <div class="right-side">
+                        <div class="box-topic">My Status</div>
+                        <div class="indicator success">
+                            <i class='bx bxs-check-circle'></i> Marked Safe
+                        </div>
+                    </div>
+                    <button class="btn-action btn-safe">Update Status</button>
+                </div>
+
+                <!-- 3. QUICK ACTION: REPORT INCIDENT (SRS Page 8 - Student User Story) -->
+                <div class="box">
+                    <div class="right-side">
+                        <div class="box-topic">Report Incident</div>
+                        <div class="text-muted">Witnessed something?</div>
+                    </div>
+                    <button class="btn-action btn-report">File Report</button>
+                </div>
+
+                <!-- 4. EMERGENCY CONTACTS -->
+                <div class="box">
+                    <div class="right-side">
+                        <div class="box-topic">Emergency Help</div>
+                        <div class="number">999</div>
+                    </div>
+                    <i class='bx bxs-phone-call cart two'></i>
+                </div>
+            </div>
+
+            <!-- LOWER SECTION: ALERTS & MAP -->
+            <div class="details-grid">
+                
+                <!-- RECENT ALERTS (SRS Page 27) -->
+                <div class="recent-alerts">
+                    <div class="card-header">
+                        <h2>Recent Alerts</h2>
+                        <a href="#" class="btn">View All</a>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Message</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge warning">Drill</span></td>
+                                <td>Fire Drill scheduled for Block A...</td>
+                                <td>10:00 AM</td>
+                                <td><i class='bx bx-check-double'></i> Read</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge info">Info</span></td>
+                                <td>Main gate maintenance update...</td>
+                                <td>Yesterday</td>
+                                <td><i class='bx bx-check-double'></i> Read</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- MAP PREVIEW (SRS Page 6 - Live Interactive Map) -->
+                <div class="map-preview">
+                    <div class="card-header">
+                        <h2>Campus Map</h2>
+                    </div>
+                    <div class="map-container">
+                        <div class="map-placeholder">
+                            <i class='bx bxs-map-pin'></i>
+                            <p>Interactive Map Module Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Simple Script for Menu Toggle -->
+    <script>
+        let sidebar = document.querySelector(".sidebar");
+        let sidebarBtn = document.querySelector(".sidebarBtn");
+        sidebarBtn.onclick = function() {
+            sidebar.classList.toggle("active");
+        }
+    </script>
+
+</body>
+</html>
