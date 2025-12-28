@@ -1,28 +1,18 @@
-/* --- GOOGLE FONTS --- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700&display=swap');
 
 :root {
-    --primary-color: #003366;    /* Security Navy Blue */
-    --accent-color: #D32F2F;     /* Emergency Red */
+    --primary-color: #003366;
+    --accent-color: #D32F2F;
     --light-bg: #f5f6fa;
     --white: #fff;
     --text-dark: #333;
     --sidebar-width: 240px;
+    --collapsed-width: 60px;
     --transition: all 0.3s ease;
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Poppins', sans-serif;
-}
-
-body {
-    min-height: 100vh;
-    background: var(--light-bg);
-    overflow-x: hidden;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+body { min-height: 100vh; background: var(--light-bg); overflow-x: hidden; }
 
 /* --- SIDEBAR --- */
 .sidebar {
@@ -34,288 +24,120 @@ body {
     z-index: 100;
 }
 
+/* Sidebar Collapsed State */
 .sidebar.active {
-    width: 60px;
+    width: var(--collapsed-width);
 }
 
 .sidebar .logo-details {
     height: 80px;
     display: flex;
     align-items: center;
-    padding-left: 20px; /* Reduced for collapsed state compatibility */
+    padding-left: 20px;
     color: var(--white);
     overflow: hidden;
 }
 
-.sidebar .logo-details i {
-    font-size: 28px;
-    margin-right: 10px;
-}
+.sidebar .logo-details i { font-size: 28px; margin-right: 10px; min-width: 60px; }
+.sidebar .logo-details .logo_name { font-size: 22px; font-weight: 600; white-space: nowrap; transition: 0.3s; }
+.sidebar .nav-links { margin-top: 20px; }
+.sidebar .nav-links li { list-style: none; height: 50px; }
+.sidebar .nav-links li a { height: 100%; width: 100%; display: flex; align-items: center; text-decoration: none; transition: var(--transition); color: #bcdae9; }
+.sidebar .nav-links li a:hover, .sidebar .nav-links li a.active { background: #004080; color: var(--white); border-left: 4px solid var(--accent-color); }
+.sidebar .nav-links li i { height: 50px; min-width: 60px; text-align: center; line-height: 50px; font-size: 20px; }
+.sidebar .nav-links li .link_name { font-size: 15px; font-weight: 400; white-space: nowrap; transition: 0.3s; }
 
-.sidebar .logo-details .logo_name {
-    font-size: 22px;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.sidebar .nav-links {
-    margin-top: 20px;
-}
-
-.sidebar .nav-links li {
-    position: relative;
-    list-style: none;
-    height: 50px;
-}
-
-.sidebar .nav-links li a {
-    height: 100%;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    transition: var(--transition);
-    color: #bcdae9; /* Softer blue for text */
-}
-
-.sidebar .nav-links li a:hover,
-.sidebar .nav-links li a.active {
-    background: #004080;
-    color: var(--white);
-    border-left: 4px solid var(--accent-color);
-}
-
-.sidebar .nav-links li i {
-    height: 50px;
-    min-width: 60px;
-    text-align: center;
-    line-height: 50px;
-    font-size: 20px;
-    cursor: pointer;
-}
-
-.sidebar .nav-links li .link_name {
-    font-size: 15px;
-    font-weight: 400;
-    white-space: nowrap;
-}
-
-/* Hide text when collapsed */
-.sidebar.active .nav-links li .link_name,
-.sidebar.active .logo-details .logo_name {
+/* HIDE TEXT WHEN SIDEBAR IS CLOSED */
+.sidebar.active .logo_name, 
+.sidebar.active .link_name {
     opacity: 0;
     pointer-events: none;
 }
 
-/* --- MAIN SECTION --- */
+/* --- MAIN CONTENT --- */
 .home-section {
     position: relative;
     background: var(--light-bg);
     min-height: 100vh;
+    top: 0;
     left: var(--sidebar-width);
     width: calc(100% - var(--sidebar-width));
     transition: var(--transition);
 }
 
+/* Expand Content when Sidebar closes */
 .sidebar.active ~ .home-section {
-    left: 60px;
-    width: calc(100% - 60px);
+    left: var(--collapsed-width);
+    width: calc(100% - var(--collapsed-width));
 }
 
-/* --- TOP NAVBAR --- */
-.home-section .top-navbar {
-    display: flex;
-    justify-content: space-between;
-    height: 80px;
-    align-items: center;
-    padding: 0 20px;
-    background: var(--white);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+.home-section .top-navbar { display: flex; justify-content: space-between; height: 80px; align-items: center; padding: 0 20px; background: var(--white); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.sidebar-button { display: flex; align-items: center; font-size: 24px; font-weight: 500; color: var(--text-dark); }
+.sidebar-button i { font-size: 35px; margin-right: 10px; cursor: pointer; }
+
+/* --- MAPS --- */
+/* Map Preview (Dashboard) */
+.map-preview .map-container {
+    height: 300px;
+    width: 100%;
+    border-radius: 8px;
+    z-index: 1;
 }
 
-.sidebar-button {
-    display: flex;
-    align-items: center;
-    font-size: 24px;
-    font-weight: 500;
-    color: var(--text-dark);
-}
-
-.sidebar-button i {
-    font-size: 35px;
-    margin-right: 10px;
-    cursor: pointer;
-}
-
-.profile-details {
-    display: flex;
-    align-items: center;
-    background: var(--light-bg);
-    padding: 10px 15px;
-    border-radius: 6px;
-    border: 1px solid #ddd;
-}
-
-.profile-details i {
-    font-size: 30px;
-    margin-left: 10px;
-    color: var(--primary-color);
-}
-
-/* --- DASHBOARD CONTENT --- */
-.home-content {
-    padding: 20px;
-}
-
-/* STATUS BANNER */
-.status-banner {
-    background-color: #4CAF50; /* Green for Normal */
-    color: white;
-    padding: 20px;
+/* BIG MAP (Incidents Page) - INCREASED SIZE HERE */
+#main-map {
+    height: 700px; /* Made much bigger */
+    width: 100%;
     border-radius: 12px;
-    display: flex;
-    align-items: center;
-    margin-bottom: 25px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    z-index: 1;
 }
 
-/* Change this class to .danger in HTML for Emergency state */
-.status-banner.danger {
-    background-color: var(--accent-color); 
-    animation: pulse 2s infinite;
-}
+/* --- TABS --- */
+.tab-content { display: none; animation: fadeIn 0.3s ease; }
+.tab-content.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-.status-banner i {
-    font-size: 40px;
-    margin-right: 20px;
-}
-
-/* OVERVIEW BOXES */
-.overview-boxes {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    margin-bottom: 25px;
-}
-
-.overview-boxes .box {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: calc(100% / 3 - 15px);
-    background: var(--white);
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 5px 10px rgba(0,0,0,0.05);
-}
-
-.right-side .box-topic {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-dark);
-    margin-bottom: 10px;
-}
-
+/* REST OF STYLES (Cards, Tables, Modal) */
+.home-content { padding: 20px; }
+.status-banner { background-color: #4CAF50; color: white; padding: 20px; border-radius: 12px; display: flex; align-items: center; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.status-banner i { font-size: 40px; margin-right: 20px; }
+.overview-boxes { display: flex; justify-content: space-between; flex-wrap: wrap; margin-bottom: 25px; }
+.overview-boxes .box { display: flex; align-items: center; justify-content: space-between; width: calc(100% / 3 - 15px); background: var(--white); padding: 20px; border-radius: 12px; box-shadow: 0 5px 10px rgba(0,0,0,0.05); }
+.right-side .box-topic { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
 .indicator.success { color: #2e7d32; font-weight: bold; }
 .text-muted { color: #888; font-size: 14px; }
 .number { font-size: 35px; font-weight: 600; color: var(--accent-color); }
-
-.box i.cart {
-    font-size: 40px;
-    color: var(--accent-color);
-    background: rgba(211, 47, 47, 0.1);
-    padding: 10px;
-    border-radius: 12px;
-}
-
-/* Buttons */
-.btn-action {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: 0.3s;
-}
-
+.box i.cart { font-size: 40px; color: var(--accent-color); background: rgba(211, 47, 47, 0.1); padding: 10px; border-radius: 12px; }
+.btn-action { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: 0.3s; }
 .btn-safe { background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; }
-.btn-safe:hover { background: #2e7d32; color: white; }
-
 .btn-report { background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; }
-.btn-report:hover { background: #1565c0; color: white; }
-
-/* --- DETAILS GRID (Table & Map) --- */
-.details-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr; /* Table gets more space */
-    gap: 20px;
-}
-
-.recent-alerts, .map-preview {
-    background: var(--white);
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 5px 10px rgba(0,0,0,0.05);
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.card-header h2 {
-    font-size: 20px;
-    color: var(--text-dark);
-}
-
-.btn {
-    text-decoration: none;
-    background: var(--primary-color);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-/* TABLE STYLES */
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
+.btn { text-decoration: none; background: var(--primary-color); color: white; padding: 10px 20px; border-radius: 4px; border: none; cursor: pointer; }
+.details-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+.recent-alerts, .map-preview { background: var(--white); padding: 20px; border-radius: 12px; box-shadow: 0 5px 10px rgba(0,0,0,0.05); }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; }
 table th { text-align: left; color: #888; font-size: 14px; padding-bottom: 10px; }
 table td { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
-
 .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; color: white; }
 .badge.warning { background: #fbc02d; color: #333; }
 .badge.info { background: #0288d1; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
+.modal-content { background: white; padding: 30px; border-radius: 12px; width: 400px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+.close-btn { position: absolute; top: 15px; right: 20px; font-size: 28px; cursor: pointer; color: #888; }
+.input-group { margin-bottom: 15px; }
+.input-group label { display: block; margin-bottom: 5px; font-weight: 500; color: #555; }
+.input-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+.action-btn { padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px; color: white; margin-right: 5px; }
+.btn-approve { background: #4CAF50; }
+.btn-reject { background: #f44336; }
 
-/* MAP PLACEHOLDER */
-.map-container {
-    height: 200px;
-    background: #e0e0e0;
-    border-radius: 8px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.map-placeholder { text-align: center; color: #666; }
-.map-placeholder i { font-size: 40px; margin-bottom: 10px; display: block; }
-
-/* --- RESPONSIVE --- */
-@media (max-width: 1000px) {
-    .overview-boxes .box { width: calc(50% - 10px); margin-bottom: 15px; }
-    .details-grid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 700px) {
-    .overview-boxes .box { width: 100%; }
-    .sidebar { width: 60px; }
-    .sidebar .nav-links li .link_name { opacity: 0; pointer-events: none; }
-    .home-section { left: 60px; width: calc(100% - 60px); }
-    .sidebar.active { width: 240px; }
+/* Responsive */
+@media (max-width: 1000px) { .overview-boxes .box { width: calc(50% - 10px); margin-bottom: 15px; } .details-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { 
+    .sidebar { width: 60px; } 
+    .sidebar .nav-links li .link_name { opacity: 0; pointer-events: none; } 
+    .home-section { left: 60px; width: calc(100% - 60px); } 
+    .sidebar.active { width: 240px; } 
     .sidebar.active .nav-links li .link_name { opacity: 1; pointer-events: auto; }
 }

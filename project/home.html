@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="dashboard.css">
     <!-- Boxicons for Icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -19,35 +22,22 @@
         </div>
         <ul class="nav-links">
             <li>
-                <a href="#" class="active">
+                <a href="#" class="nav-link active" data-target="dashboard-section">
                     <i class='bx bxs-dashboard'></i>
                     <span class="link_name">Dashboard</span>
                 </a>
             </li>
             <li>
-                <a href="#">
-                    <i class='bx bxs-map'></i>
-                    <span class="link_name">Live Map</span>
-                </a>
-            </li>
-            <li>
-                <a href="#">
-                    <i class='bx bxs-bell-ring'></i>
-                    <span class="link_name">Alerts</span>
-                </a>
-            </li>
-            <li>
-                <a href="#">
-                    <i class='bx bxs-user-check'></i>
-                    <span class="link_name">Evacuation</span>
-                </a>
-            </li>
-            <li>
-                <a href="#">
+                <a href="#" class="nav-link" data-target="incidents-section">
                     <i class='bx bxs-report'></i>
-                    <span class="link_name">Report Incident</span>
+                    <span class="link_name">Incidents</span>
                 </a>
             </li>
+            <!-- Placeholder for other links -->
+            <li><a href="#"><i class='bx bxs-map'></i><span class="link_name">Live Map</span></a></li>
+            <li><a href="#"><i class='bx bxs-bell-ring'></i><span class="link_name">Alerts</span></a></li>
+            <li><a href="#"><i class='bx bxs-user-check'></i><span class="link_name">Evacuation</span></a></li>
+            
             <li class="log_out">
                 <a href="login.html">
                     <i class='bx bx-log-out'></i>
@@ -59,123 +49,173 @@
 
     <!-- MAIN CONTENT AREA -->
     <section class="home-section">
-        <!-- TOP NAVIGATION HEADER -->
+        <!-- TOP NAVBAR -->
         <nav class="top-navbar">
             <div class="sidebar-button">
                 <i class='bx bx-menu sidebarBtn'></i>
-                <span class="dashboard">Student Dashboard</span>
+                <span class="dashboard">Campus Security System</span>
             </div>
             <div class="profile-details">
-                <!-- In C++, you would inject the user's name here -->
-                <span class="admin_name">Welcome, welcomemat</span> 
+                <!-- C++ will replace this -->
+                <span class="admin_name">Welcome, User</span> 
                 <i class='bx bxs-user-circle'></i>
             </div>
         </nav>
 
-        <!-- DASHBOARD CONTENT -->
         <div class="home-content">
-
-            <!-- 1. EMERGENCY STATUS CARD (SRS Page 4) -->
-            <div class="status-banner normal">
-                <div class="status-icon"><i class='bx bxs-check-shield'></i></div>
-                <div class="status-text">
-                    <h3>Current Campus Status: NORMAL</h3>
-                    <p>No active threats detected. Proceed with daily activities.</p>
+            
+            <!-- SECTION 1: DASHBOARD (Your Original Design) -->
+            <div id="dashboard-section" class="tab-content active">
+                <!-- Status Banner -->
+                <div class="status-banner normal">
+                    <div class="status-icon"><i class='bx bxs-check-shield'></i></div>
+                    <div class="status-text">
+                        <h3>Current Campus Status: NORMAL</h3>
+                        <p>No active threats detected. Proceed with daily activities.</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="overview-boxes">
-                
-                <!-- 2. QUICK ACTION: I AM SAFE (SRS Page 4 - "Mark status as Safe") -->
-                <div class="box">
-                    <div class="right-side">
-                        <div class="box-topic">My Status</div>
-                        <div class="indicator success">
-                            <i class='bx bxs-check-circle'></i> Marked Safe
+                <!-- Overview Boxes -->
+                <div class="overview-boxes">
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">My Status</div>
+                            <div class="indicator success"><i class='bx bxs-check-circle'></i> Marked Safe</div>
                         </div>
+                        <button class="btn-action btn-safe">Update Status</button>
                     </div>
-                    <button class="btn-action btn-safe">Update Status</button>
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">Report Incident</div>
+                            <div class="text-muted">Witnessed something?</div>
+                        </div>
+                        <!-- Clicking this now switches tabs -->
+                        <button class="btn-action btn-report" onclick="switchToIncidents()">File Report</button>
+                    </div>
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">Emergency Help</div>
+                            <div class="number">999</div>
+                        </div>
+                        <i class='bx bxs-phone-call cart two'></i>
+                    </div>
                 </div>
 
-                <!-- 3. QUICK ACTION: REPORT INCIDENT (SRS Page 8 - Student User Story) -->
-                <div class="box">
-                    <div class="right-side">
-                        <div class="box-topic">Report Incident</div>
-                        <div class="text-muted">Witnessed something?</div>
+                <!-- Dashboard Tables -->
+                <div class="details-grid">
+                    <div class="recent-alerts">
+                        <div class="card-header">
+                            <h2>Recent Alerts</h2>
+                            <a href="#" class="btn">View All</a>
+                        </div>
+                        <table>
+                            <thead><tr><th>Type</th><th>Message</th><th>Time</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="badge warning">Drill</span></td>
+                                    <td>Fire Drill scheduled for Block A...</td>
+                                    <td>10:00 AM</td>
+                                    <td>Read</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <button class="btn-action btn-report">File Report</button>
-                </div>
-
-                <!-- 4. EMERGENCY CONTACTS -->
-                <div class="box">
-                    <div class="right-side">
-                        <div class="box-topic">Emergency Help</div>
-                        <div class="number">999</div>
+                    <div class="map-preview">
+                        <div class="card-header"><h2>Map Preview</h2></div>
+                        <div class="map-container"><div id="mini-map" style="width:100%; height:100%;"></div></div>
                     </div>
-                    <i class='bx bxs-phone-call cart two'></i>
                 </div>
             </div>
+            <!-- END DASHBOARD SECTION -->
 
-            <!-- LOWER SECTION: ALERTS & MAP -->
-            <div class="details-grid">
-                
-                <!-- RECENT ALERTS (SRS Page 27) -->
-                <div class="recent-alerts">
+
+            <!-- SECTION 2: INCIDENTS (Merged from 1.html) -->
+            <div id="incidents-section" class="tab-content">
+                <div class="card-header">
+                    <h2>Incident Management</h2>
+                    <button class="btn" id="openModalBtn" style="background: var(--accent-color);">+ New Report</button>
+                </div>
+
+                <!-- PENDING REPORTS (For Security Officer) -->
+                <!-- We hide this by default, JS shows it if needed -->
+                <div class="recent-alerts" id="security-panel" style="margin-top: 20px; display:block;">
                     <div class="card-header">
-                        <h2>Recent Alerts</h2>
-                        <a href="#" class="btn">View All</a>
+                        <h3 style="color: var(--accent-color);">Pending Approvals</h3>
                     </div>
                     <table>
-                        <thead>
+                        <thead><tr><th>Type</th><th>Location</th><th>Time</th><th>Action</th></tr></thead>
+                        <tbody id="pending-tbody">
+                            <!-- JS adds rows here -->
+                        </tbody>
+                    </table>
+                        <div class="card-header" style="margin-top: 30px;">
+                        <h3>Live Campus Incident Map</h3>
+                         </div>
+                        <div class="map-container" style="background: white; padding: 10px; border-radius: 12px; box-shadow: 0 5px 10px rgba(0,0,0,0.05);">
+                    <!-- This is the Large Map -->
+                        <div id="main-map" style="height: 450px; width: 100%; border-radius: 8px; z-index: 1;"></div>
+                    </div>
+            </div>
+
+                <!-- ACTIVE INCIDENTS (Public View) -->
+                <div class="recent-alerts" style="margin-top: 20px;">
+                    <div class="card-header"><h3>Live Active Incidents</h3></div>
+                    <table>
+                        <thead><tr><th>Type</th><th>Location</th><th>Time</th><th>Status</th></tr></thead>
+                        <tbody id="active-tbody">
                             <tr>
-                                <th>Type</th>
-                                <th>Message</th>
-                                <th>Time</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><span class="badge warning">Drill</span></td>
-                                <td>Fire Drill scheduled for Block A...</td>
-                                <td>10:00 AM</td>
-                                <td><i class='bx bx-check-double'></i> Read</td>
-                            </tr>
-                            <tr>
-                                <td><span class="badge info">Info</span></td>
-                                <td>Main gate maintenance update...</td>
-                                <td>Yesterday</td>
-                                <td><i class='bx bx-check-double'></i> Read</td>
+                                <td>Fire Drill</td>
+                                <td>Block A</td>
+                                <td>09:00 AM</td>
+                                <td><span class="badge info">Official</span></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-
-                <!-- MAP PREVIEW (SRS Page 6 - Live Interactive Map) -->
-                <div class="map-preview">
-                    <div class="card-header">
-                        <h2>Campus Map</h2>
-                    </div>
-                    <div class="map-container">
-                        <div class="map-placeholder">
-                            <i class='bx bxs-map-pin'></i>
-                            <p>Interactive Map Module Loading...</p>
-                        </div>
-                    </div>
-                </div>
-
             </div>
+            <!-- END INCIDENTS SECTION -->
+
         </div>
     </section>
 
-    <!-- Simple Script for Menu Toggle -->
+    <!-- REPORT INCIDENT MODAL -->
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Submit Incident Report</h2>
+            <form id="incidentForm">
+                <div class="input-group">
+                    <label>Incident Type</label>
+                    <input type="text" id="inType" placeholder="e.g. Fire, Theft, Injury" required>
+                </div>
+                <div class="input-group">
+                    <label>Location</label>
+                    <input type="text" id="inLoc" placeholder="e.g. Block B, Level 2" required>
+                </div>
+                <div class="input-group">
+                    <label>Time</label>
+                    <input type="time" id="inTime" required>
+                </div>
+                <button type="submit" class="btn" style="width:100%; margin-top:10px;">Submit Report</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Link to JS -->
+    <script src="script.js"></script>
+
     <script>
+        // Simple inline script to handle map placeholder if JS fails
         let sidebar = document.querySelector(".sidebar");
         let sidebarBtn = document.querySelector(".sidebarBtn");
+        if (sidebarBtn) {
         sidebarBtn.onclick = function() {
             sidebar.classList.toggle("active");
+            }
+        }
+        function switchToIncidents() {
+            document.querySelector('[data-target="incidents-section"]').click();
         }
     </script>
-
 </body>
 </html>
