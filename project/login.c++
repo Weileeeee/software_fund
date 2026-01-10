@@ -137,14 +137,34 @@ int main() {
     string connStr = "Driver={MySQL ODBC 9.5 Unicode Driver};Server=" + DB_HOST + ";Database=" + DB_NAME + ";User=" + DB_USER + ";Password=" + DB_PASS + ";Option=3;";
     if (!SQL_SUCCEEDED(SQLDriverConnectA(sqlConn, NULL, (SQLCHAR*)connStr.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT))) {
         cout << "[FATAL] DB Connection Failed" << endl; return -1;
+        // Print detailed SQL Error
+        SQLCHAR sqlState[1024], message[1024];
+        SQLGetDiagRecA(SQL_HANDLE_DBC, sqlConn, 1, sqlState, NULL, message, 1024, NULL);
+        cout << "System Message: " << message << endl;
+
+        cout << "\nPress ENTER to exit..." << endl;
+        cin.get(); // PAUSE SO YOU CAN READ THE ERROR
+        return -1;
     }
 
     WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa);
     SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in addr; addr.sin_family = AF_INET; addr.sin_addr.s_addr = INADDR_ANY; addr.sin_port = htons(SERVER_PORT);
-    bind(s, (sockaddr*)&addr, sizeof(addr)); listen(s, SOMAXCONN);
-    cout << "Server Running..." << endl;
+    if (bind(s, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
+        cout << "[FATAL ERROR] Port " << SERVER_PORT << " is already in use!" << endl;
+        cout << "Close other login.exe windows or change SERVER_PORT to 8081." << endl;
+        cout << "Press ENTER to exit..." << endl;
+        cin.get();
+        return -1;
+    }
+    
+    listen(s, SOMAXCONN);
+    cout << "Server Running on http://localhost:8080 ..." << endl;
+    cout << "Do NOT close this window!" << endl;
+    
+    // Only open browser if server started successfully
     ShellExecuteA(0, 0, "http://localhost:8080", 0, 0, SW_SHOW);
+
 
     string currentUserName = "Guest";
 

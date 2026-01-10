@@ -32,17 +32,15 @@ CREATE TABLE StudentProfiles (
 
 -- 4. INCIDENT MANAGEMENT (For the Interactive Map)
 CREATE TABLE Incidents (
-    incident_id INT PRIMARY KEY AUTO_INCREMENT,
-    reporter_id INT NOT NULL, 
-    incident_type VARCHAR(50) NOT NULL, 
-    description TEXT,
-    severity_level ENUM('Low', 'Medium', 'High', 'Critical') NOT NULL, 
-    location_name VARCHAR(100),
-    latitude DECIMAL(10, 8), 
-    longitude DECIMAL(11, 8),
-    incident_status ENUM('Reported', 'In Progress', 'Resolved') DEFAULT 'Reported',
-    reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (reporter_id) REFERENCES Users(user_id)
+    incident_id INT AUTO_INCREMENT PRIMARY KEY,
+    reporter_name VARCHAR(100),       -- Stores "John Doe"
+    incident_type VARCHAR(100),       -- Stores "Fire", "Theft"
+    location_name VARCHAR(100),       -- Stores "Block A"
+    reported_at DATETIME,             -- Stores "2025-01-20 12:00:00"
+    incident_status VARCHAR(50) DEFAULT 'Pending',
+    latitude DOUBLE,
+    longitude DOUBLE,
+    description VARCHAR(255)
 );
 
 -- EVIDENCE TABLE (Warden optional uploads)
