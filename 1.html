@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniSafe 360 - MMU Cyberjaya</title>
+    <link href='https://unpkg.com/boxicons@2.1.1/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="2.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-bar">
+            <span class="logo navLogo"><a href="#" onclick="location.reload()">UniSafe 360</a></span>
+            <div class="menu">
+                <ul class="nav-links">
+                    <li><a href="#" class="nav-link active" data-target="dashboard-section">Dashboard</a></li>
+                    <li><a href="#" class="nav-link" data-target="role-selection-section">Incidents</a></li>
+                    <li><a href="#" class="nav-link" data-target="evacuation-section">Evacuation</a></li>
+                </ul>
+            </div>
+            <div class="right-container">
+                <div class="searchBox">
+                    <div class="search-field"><input type="text" placeholder="Search..."><i class='bx bx-search'></i></div>
+                </div>
+                <div class="nav-actions">
+                    <button class="nav-btn"><i class='bx bx-bell'></i></button>
+                    <button class="nav-btn"><i class='bx bx-cog'></i></button>
+                    <button class="nav-btn" id="logoutBtn" style="display:none;"><i class='bx bx-log-out'></i></button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="content-container">
+        <section id="dashboard-section" class="tab-content active">
+            <h1>Dashboard Overview</h1>
+            <div class="welcome-card">
+                <p>欢迎来到 UniSafe 360 智能校园安全系统。</p>
+                <p>请点击导航栏中的 <b>Incidents</b> 开始操作。</p>
+            </div>
+        </section>
+
+        <section id="role-selection-section" class="tab-content">
+            <div class="selection-container">
+                <div class="selection-card" id="goStudentBtn">
+                    <div class="card-icon student-icon">
+                        <i class='bx bxs-graduation'></i>
+                    </div>
+                    <h3>Student</h3>
+                    <p>Report incidents to security</p>
+                    <button class="action-link">Login as Student <i class='bx bx-right-arrow-alt'></i></button>
+                </div>
+
+                <div class="selection-card" id="goSecurityBtn">
+                    <div class="card-icon security-icon">
+                        <i class='bx bxs-shield-quarter'></i>
+                    </div>
+                    <h3>Security Officer</h3>
+                    <p>Review and approve reports</p>
+                    <button class="action-link">Login as Security <i class='bx bx-right-arrow-alt'></i></button>
+                </div>
+            </div>
+        </section>
+
+        <section id="login-section" class="tab-content login-bg">
+            <div class="login-card">
+                <div class="login-header">
+                    <i class='bx bxs-user-circle'></i>
+                    <h2 id="loginTitle">User Login</h2>
+                </div>
+                <form id="loginForm">
+                    <div class="input-group">
+                        <label id="idLabel">ID Number</label>
+                        <input type="text" placeholder="Enter ID" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" placeholder="Enter Password" required>
+                    </div>
+
+                    <div id="captchaArea" class="captcha-box" style="display: none;">
+                        <div class="captcha-header">
+                            <span>Secure Robot Verification</span>
+                            <small>Select all Fire Hydrants</small>
+                        </div>
+                        <div class="captcha-grid">
+                            <div class="captcha-item" data-correct="true"><img src="https://cdn-icons-png.flaticon.com/512/427/427735.png"></div>
+                            <div class="captcha-item"><img src="https://cdn-icons-png.flaticon.com/512/2830/2830305.png"></div>
+                            <div class="captcha-item" data-correct="true"><img src="https://cdn-icons-png.flaticon.com/512/427/427735.png"></div>
+                            <div class="captcha-item"><img src="https://cdn-icons-png.flaticon.com/512/2961/2961948.png"></div>
+                        </div>
+                        <input type="hidden" id="captchaStatus" value="false">
+                    </div>
+
+                    <button type="submit" class="login-btn">Sign In</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="incidents-section" class="tab-content">
+            <div class="section-header">
+                <h1 id="managementHeader">Campus Incidents</h1>
+                <button class="report-btn" id="openModalBtn">+ New Incident Report</button>
+            </div>
+
+            <div id="security-panel" class="approval-panel" style="display: none;">
+                <h3><i class='bx bx-time-five'></i> Pending Student Reports</h3>
+                <div class="table-container">
+                    <table class="incident-table">
+                        <thead>
+                            <tr><th>Type</th><th>Location</th><th>Time</th><th>Action</th></tr>
+                        </thead>
+                        <tbody id="pending-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <h3>Live Active Incidents</h3>
+                <table class="incident-table">
+                    <thead>
+                        <tr><th>Type</th><th>Location</th><th>Time</th><th>Status</th></tr>
+                    </thead>
+                    <tbody id="active-tbody">
+                        <tr><td>Fire Drill</td><td>Block A</td><td>09:00 AM</td><td><span class="type-tag official">Official</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+        </section>
+    </main>
+
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">×</span>
+            <h2>Submit Incident Report</h2>
+            <form id="incidentForm">
+                <div class="input-group"><label>Type</label><input type="text" id="inType" required></div>
+                <div class="input-group"><label>Location</label><input type="text" id="inLoc" required></div>
+                <div class="input-group"><label>Time</label><input type="time" id="inTime" required></div>
+                <button type="submit" class="submit-btn">Submit Report</button>
+            </form>
+            <div id="successOverlay" class="success-overlay">
+                <div class="success-content"><i class='bx bx-check-circle'></i><p>Successfully Submitted!</p></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
