@@ -14,110 +14,48 @@
 
 using namespace std;
 
-// --- CONFIGURATION ---
+// CONFIG
 const string DB_HOST = "127.0.0.1";
 const string DB_NAME = "CampusSecurityDB";
 const string DB_USER = "root";
 const string DB_PASS = "admin@1234"; 
 const int SERVER_PORT = 8080;
 
-// --- DATABASE HELPERS ---
+string currentUserName = "Guest";
+string currentUserRole = "student"; 
+string currentUserBlock = "";
 
-// 1. LOGIN
-bool AttemptLogin(SQLHDBC sqlConnHandle, string user, string pass, string &outFullName) {
-    SQLHSTMT hStmt;
-    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
-    
-    // We only need the Name now
-    string query = "SELECT full_name FROM Users WHERE username = '" + user + "' AND password_hash = '" + pass + "';";
-    
-    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) { 
-        SQLFreeHandle(SQL_HANDLE_STMT, hStmt); 
-        return false; 
-    }
+// --- 1. HELPER FUNCTIONS (MUST BE AT TOP) ---
 
-    if (SQLFetch(hStmt) == SQL_SUCCESS) {
-        char nameBuf[100];
-        SQLGetData(hStmt, 1, SQL_C_CHAR, nameBuf, sizeof(nameBuf), NULL);
-        outFullName = nameBuf;
-        SQLFreeHandle(SQL_HANDLE_STMT, hStmt); 
-        return true;
-    }
-    SQLFreeHandle(SQL_HANDLE_STMT, hStmt); 
-    return false;
+// Get Current Directory
+string GetCurrentDir() {
+    char buffer[MAX_PATH];
+    GetModuleFileNameA(NULL, buffer, MAX_PATH);
+    string::size_type pos = string(buffer).find_last_of("\\/");
+    return string(buffer).substr(0, pos);
 }
 
-// 2. SAVE INCIDENT (FIXED: Uses reporter_name)
-bool SaveIncident(SQLHDBC sqlConnHandle, string type, string loc, string time, string lat, string lng, string reporterName) {
-    SQLHSTMT hStmt;
-    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
-
-    cout << "[DEBUG] Saving Incident by: " << reporterName << endl;
-
-    // FIX: Column is reporter_name, and we ADD QUOTES around reporterName because it is text
-    string query = "INSERT INTO Incidents (reporter_name, incident_type, location_name, reported_at, incident_status, latitude, longitude, description) VALUES ('" 
-                   + reporterName + "', '" + type + "', '" + loc + "', CONCAT(CURDATE(), ' ', '" + time + ":00'), 'Pending', " + lat + ", " + lng + ", 'Reported via Web');";
-
-    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS) {
-        cout << "[SUCCESS] Saved to DB." << endl;
-        SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
-        return true;
-    } else {
-        SQLCHAR sqlState[1024], message[1024];
-        SQLGetDiagRecA(SQL_HANDLE_STMT, hStmt, 1, sqlState, NULL, message, 1024, NULL);
-        cout << "[DB ERROR] " << message << endl;
-        SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
-        return false;
-    }
-}
-
-// 3. FETCH ALL INCIDENTS
-string GetAllIncidents(SQLHDBC sqlConnHandle) {
-    SQLHSTMT hStmt;
-    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
-    
-    // Updated to select reporter_name just in case needed later, though frontend uses type/loc
-    string query = "SELECT incident_id, incident_type, location_name, DATE_FORMAT(reported_at, '%H:%i'), incident_status, latitude, longitude FROM Incidents;";
-
-    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) return "";
-
-    string result = "";
-    char id[20], type[100], loc[100], time[50], status[50], lat[50], lng[50];
-    
-    while (SQLFetch(hStmt) == SQL_SUCCESS) {
-        SQLGetData(hStmt, 1, SQL_C_CHAR, id, sizeof(id), NULL);
-        SQLGetData(hStmt, 2, SQL_C_CHAR, type, sizeof(type), NULL);
-        SQLGetData(hStmt, 3, SQL_C_CHAR, loc, sizeof(loc), NULL);
-        SQLGetData(hStmt, 4, SQL_C_CHAR, time, sizeof(time), NULL);
-        SQLGetData(hStmt, 5, SQL_C_CHAR, status, sizeof(status), NULL);
-        SQLGetData(hStmt, 6, SQL_C_CHAR, lat, sizeof(lat), NULL);
-        SQLGetData(hStmt, 7, SQL_C_CHAR, lng, sizeof(lng), NULL);
-        
-        result += string(id) + "|" + type + "|" + loc + "|" + time + "|" + status + "|" + lat + "|" + lng + ";";
-    }
-    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
-    return result;
-}
-
-// 4. UPDATE STATUS
-bool UpdateIncidentStatus(SQLHDBC sqlConnHandle, string id, string newStatus) {
-    SQLHSTMT hStmt;
-    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
-    string query = "UPDATE Incidents SET incident_status='" + newStatus + "' WHERE incident_id=" + id + ";";
-    bool success = (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS);
-    if(success) cout << "[DB] Updated ID " << id << " to " << newStatus << endl;
-    else cout << "[DB ERROR] Failed to update status." << endl;
-    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
-    return success;
-}
-
-// --- UTILS ---
+// Read File Content
 string LoadFile(string filename) {
     ifstream file(filename, ios::binary);
     if (!file) return "";
-    stringstream buffer; buffer << file.rdbuf(); return buffer.str();
+    stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
 }
 
+// Parse URL Param
+string GetP(string b, string k) {
+    size_t s = b.find(k + "="); if (s == string::npos) return "";
+    s += k.length() + 1; 
+    size_t e = b.find("&", s); 
+    if (e == string::npos) e = b.length();
+    string v = b.substr(s, e - s); 
+    for(char &c : v) if(c == '+') c = ' '; 
+    return v;
+}
+
+// Parse All Data (Helper wrapper)
 void ParseData(string body, string &outType, string &outLoc, string &outTime, string &outLat, string &outLng, string &outID, string &outAction) {
     auto getVal = [&](string key) {
         size_t s = body.find(key + "="); if (s == string::npos) return string("");
@@ -129,86 +67,263 @@ void ParseData(string body, string &outType, string &outLoc, string &outTime, st
     outID = getVal("id"); outAction = getVal("action");
 }
 
+// --- 2. DATABASE FUNCTIONS ---
+
+bool AttemptLogin(SQLHDBC sqlConnHandle, string user, string pass, string &outFullName, string &outRole, string &outBlock) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "SELECT full_name, role, IFNULL(block, '') FROM Users WHERE username = '" + user + "' AND password_hash = '" + pass + "';";
+    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) { SQLFreeHandle(SQL_HANDLE_STMT, hStmt); return false; }
+    if (SQLFetch(hStmt) == SQL_SUCCESS) {
+        char nameBuf[100], roleBuf[50], blockBuf[50];
+        SQLGetData(hStmt, 1, SQL_C_CHAR, nameBuf, sizeof(nameBuf), NULL);
+        SQLGetData(hStmt, 2, SQL_C_CHAR, roleBuf, sizeof(roleBuf), NULL);
+        SQLGetData(hStmt, 3, SQL_C_CHAR, blockBuf, sizeof(blockBuf), NULL);
+        outFullName = nameBuf; outRole = roleBuf; outBlock = blockBuf;
+        SQLFreeHandle(SQL_HANDLE_STMT, hStmt); return true;
+    }
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt); return false;
+}
+
+bool SaveIncident(SQLHDBC sqlConnHandle, string type, string loc, string time, string lat, string lng, string reporterName) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "INSERT INTO Incidents (reporter_name, incident_type, location_name, reported_at, incident_status, latitude, longitude, description) VALUES ('" 
+                   + reporterName + "', '" + type + "', '" + loc + "', CONCAT(CURDATE(), ' ', '" + time + ":00'), 'Pending', " + lat + ", " + lng + ", 'Reported via Web');";
+    bool success = (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS);
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    return success;
+}
+
+string GetAllIncidents(SQLHDBC sqlConnHandle) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "SELECT incident_id, incident_type, location_name, DATE_FORMAT(reported_at, '%H:%i'), incident_status, latitude, longitude FROM Incidents;";
+    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) return "";
+    string result = "";
+    char id[20], type[100], loc[100], time[50], status[50], lat[50], lng[50];
+    while (SQLFetch(hStmt) == SQL_SUCCESS) {
+        SQLGetData(hStmt, 1, SQL_C_CHAR, id, sizeof(id), NULL);
+        SQLGetData(hStmt, 2, SQL_C_CHAR, type, sizeof(type), NULL);
+        SQLGetData(hStmt, 3, SQL_C_CHAR, loc, sizeof(loc), NULL);
+        SQLGetData(hStmt, 4, SQL_C_CHAR, time, sizeof(time), NULL);
+        SQLGetData(hStmt, 5, SQL_C_CHAR, status, sizeof(status), NULL);
+        SQLGetData(hStmt, 6, SQL_C_CHAR, lat, sizeof(lat), NULL);
+        SQLGetData(hStmt, 7, SQL_C_CHAR, lng, sizeof(lng), NULL);
+        result += string(id) + "|" + type + "|" + loc + "|" + time + "|" + status + "|" + lat + "|" + lng + ";";
+    }
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    return result;
+}
+
+// --- BROADCASTING & UPDATE ---
+
+bool GetIncidentDetails(SQLHDBC sqlConnHandle, string incidentId, string &outType, string &outLoc) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "SELECT incident_type, location_name FROM Incidents WHERE incident_id = " + incidentId + ";";
+    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) { SQLFreeHandle(SQL_HANDLE_STMT, hStmt); return false; }
+    if (SQLFetch(hStmt) == SQL_SUCCESS) {
+        char typeBuf[100], locBuf[100];
+        SQLGetData(hStmt, 1, SQL_C_CHAR, typeBuf, sizeof(typeBuf), NULL);
+        SQLGetData(hStmt, 2, SQL_C_CHAR, locBuf, sizeof(locBuf), NULL);
+        outType = typeBuf; outLoc = locBuf;
+        SQLFreeHandle(SQL_HANDLE_STMT, hStmt); return true;
+    }
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt); return false;
+}
+
+string GetAllStudentEmails(SQLHDBC sqlConnHandle) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "SELECT email FROM Users WHERE role = 'Student';";
+    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) return "";
+    string allEmails = "";
+    char emailBuf[100];
+    while (SQLFetch(hStmt) == SQL_SUCCESS) {
+        SQLGetData(hStmt, 1, SQL_C_CHAR, emailBuf, sizeof(emailBuf), NULL);
+        string e = string(emailBuf);
+        if (!e.empty()) allEmails += e + ",";
+    }
+    if (!allEmails.empty() && allEmails.back() == ',') allEmails.pop_back();
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    return allEmails;
+}
+
+bool UpdateIncidentStatus(SQLHDBC sqlConnHandle, string id, string newStatus) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "UPDATE Incidents SET incident_status='" + newStatus + "' WHERE incident_id=" + id + ";";
+    
+    bool success = (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS);
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    
+    // Broadcast Logic
+    if (success && newStatus == "Approved") {
+        string type, loc;
+        if (GetIncidentDetails(sqlConnHandle, id, type, loc)) {
+            string allRecipients = GetAllStudentEmails(sqlConnHandle);
+            if (!allRecipients.empty()) {
+                cout << "[BROADCAST] Sending Email to: " << allRecipients << endl;
+                string scriptPath = GetCurrentDir() + "\\send_mail.py";
+                string cmd = "python \"" + scriptPath + "\" \"" + allRecipients + "\" \"" + type + "\" \"" + loc + "\"";
+                system(cmd.c_str());
+            }
+        }
+    }
+    return success;
+}
+
+// --- EVACUATION ---
+
+bool StartEvacuation(SQLHDBC sqlConnHandle, string block) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    cout << "[EVACUATION] Starting for Block: " << block << endl;
+    string query = "UPDATE EvacuationLogs e JOIN Users u ON e.user_id = u.user_id "
+                   "SET e.status = 'Missing' "
+                   "WHERE u.role = 'Student' AND u.block = '" + block + "';";
+    bool success = (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS);
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    return success;
+}
+
+void GenerateUnsafeReport(SQLHDBC sqlConnHandle) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "SELECT u.full_name, IFNULL(u.block,'-'), IFNULL(u.username,'-') FROM Users u JOIN EvacuationLogs e ON u.user_id = e.user_id WHERE e.status = 'Missing';";
+    
+    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS) {
+        ofstream report("Unsafe_Students.txt");
+        report << "UNSAFE STUDENT REPORT\n---------------------\n";
+        char name[100], block[50], code[50];
+        while (SQLFetch(hStmt) == SQL_SUCCESS) {
+            SQLGetData(hStmt, 1, SQL_C_CHAR, name, sizeof(name), NULL);
+            SQLGetData(hStmt, 2, SQL_C_CHAR, block, sizeof(block), NULL);
+            SQLGetData(hStmt, 3, SQL_C_CHAR, code, sizeof(code), NULL);
+            report << name << " (Block " << block << ") - ID: " << code << "\n";
+        }
+        report.close();
+        ShellExecuteA(NULL, "open", "Unsafe_Students.txt", NULL, NULL, SW_SHOWNORMAL);
+    }
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+}
+
+string GetEvacuationList(SQLHDBC sqlConnHandle) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "SELECT u.user_id, u.full_name, IFNULL(u.block, '-'), e.status, DATE_FORMAT(e.last_updated, '%H:%i:%s') FROM Users u JOIN EvacuationLogs e ON u.user_id = e.user_id WHERE u.role = 'Student';";
+    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) return "";
+    string result = "";
+    char id[20], name[100], block[20], status[20], time[50];
+    while (SQLFetch(hStmt) == SQL_SUCCESS) {
+        SQLGetData(hStmt, 1, SQL_C_CHAR, id, sizeof(id), NULL);
+        SQLGetData(hStmt, 2, SQL_C_CHAR, name, sizeof(name), NULL);
+        SQLGetData(hStmt, 3, SQL_C_CHAR, block, sizeof(block), NULL);
+        SQLGetData(hStmt, 4, SQL_C_CHAR, status, sizeof(status), NULL);
+        SQLGetData(hStmt, 5, SQL_C_CHAR, time, sizeof(time), NULL);
+        result += string(id) + "|" + name + "|" + block + "|" + status + "|" + time + ";";
+    }
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    return result;
+}
+
+bool MarkStudentSafe(SQLHDBC sqlConnHandle, string userId) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "UPDATE EvacuationLogs SET status='Safe' WHERE user_id=" + userId + ";";
+    bool success = (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS);
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    return success;
+}
+
+string GetUserIdByName(SQLHDBC sqlConnHandle, string username) {
+    SQLHSTMT hStmt;
+    SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    string query = "SELECT user_id FROM Users WHERE username = '" + username + "'";
+    string id = "0";
+    if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS) {
+        if(SQLFetch(hStmt) == SQL_SUCCESS) {
+            char buf[50]; SQLGetData(hStmt, 1, SQL_C_CHAR, buf, sizeof(buf), NULL);
+            id = buf;
+        }
+    }
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    return id;
+}
+
+// --- 3. MAIN FUNCTION ---
+
 int main() {
     SQLHENV sqlEnv; SQLHDBC sqlConn;
     SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &sqlEnv);
     SQLSetEnvAttr(sqlEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
     SQLAllocHandle(SQL_HANDLE_DBC, sqlEnv, &sqlConn);
     string connStr = "Driver={MySQL ODBC 9.5 Unicode Driver};Server=" + DB_HOST + ";Database=" + DB_NAME + ";User=" + DB_USER + ";Password=" + DB_PASS + ";Option=3;";
+    
     if (!SQL_SUCCEEDED(SQLDriverConnectA(sqlConn, NULL, (SQLCHAR*)connStr.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT))) {
         cout << "[FATAL] DB Connection Failed" << endl; return -1;
-        // Print detailed SQL Error
-        SQLCHAR sqlState[1024], message[1024];
-        SQLGetDiagRecA(SQL_HANDLE_DBC, sqlConn, 1, sqlState, NULL, message, 1024, NULL);
-        cout << "System Message: " << message << endl;
-
-        cout << "\nPress ENTER to exit..." << endl;
-        cin.get(); // PAUSE SO YOU CAN READ THE ERROR
-        return -1;
     }
 
     WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa);
     SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in addr; addr.sin_family = AF_INET; addr.sin_addr.s_addr = INADDR_ANY; addr.sin_port = htons(SERVER_PORT);
-    if (bind(s, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
-        cout << "[FATAL ERROR] Port " << SERVER_PORT << " is already in use!" << endl;
-        cout << "Close other login.exe windows or change SERVER_PORT to 8081." << endl;
-        cout << "Press ENTER to exit..." << endl;
-        cin.get();
-        return -1;
-    }
-    
-    listen(s, SOMAXCONN);
-    cout << "Server Running on http://localhost:8080 ..." << endl;
-    cout << "Do NOT close this window!" << endl;
-    
-    // Only open browser if server started successfully
+    bind(s, (sockaddr*)&addr, sizeof(addr)); listen(s, SOMAXCONN);
+    cout << "Server Running..." << endl;
     ShellExecuteA(0, 0, "http://localhost:8080", 0, 0, SW_SHOW);
-
-
-    string currentUserName = "Guest";
 
     while (true) {
         SOCKET c = accept(s, NULL, NULL);
         char buf[4096] = {0}; recv(c, buf, 4096, 0);
-        string req(buf), resp, type, loc, time, lat, lng, id, action;
+        string req(buf), resp, body = req.substr(req.find("\r\n\r\n") + 4);
 
         if (req.find("GET / ") != string::npos || req.find("GET /login.html") != string::npos) {
             resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + LoadFile("login.html");
         } 
         else if (req.find("POST /login") != string::npos) {
-            string body = req.substr(req.find("\r\n\r\n") + 4);
-            string u, p; 
-            size_t us = body.find("userid=")+7, ue = body.find("&", us); u = body.substr(us, ue-us);
-            size_t ps = body.find("password=")+9; p = body.substr(ps);
-            
-            // PASS Variable by Reference
-            if (AttemptLogin(sqlConn, u, p, currentUserName)) {
-                cout << "Login Success: " << currentUserName << endl;
+            string u = GetP(body, "userid"); string p = GetP(body, "password");
+            if (AttemptLogin(sqlConn, u, p, currentUserName, currentUserRole, currentUserBlock)) {
                 resp = "HTTP/1.1 303 See Other\r\nLocation: /home.html\r\n\r\n";
-            }
-            else resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + LoadFile("login.html") + "<script>alert('Fail');</script>";
+            } else resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + LoadFile("login.html") + "<script>alert('Fail');</script>";
         }
         else if (req.find("GET /home.html") != string::npos) {
             string h = LoadFile("home.html"); 
+            string rs = "<script>window.SERVER_INJECTED_ROLE = '" + currentUserRole + "';</script>";
+            size_t rp = h.find("<body>"); if(rp != string::npos) h.insert(rp + 6, rs);
             size_t p = h.find("Welcome, User"); if(p!=string::npos) h.replace(p,13,"Welcome, "+currentUserName);
             resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + h;
         }
         else if (req.find("POST /report_incident") != string::npos) {
-            ParseData(req.substr(req.find("\r\n\r\n") + 4), type, loc, time, lat, lng, id, action);
-            
-            // PASS currentUserName to SaveIncident
-            if(SaveIncident(sqlConn, type, loc, time, lat, lng, currentUserName)) resp = "HTTP/1.1 200 OK\r\n\r\nSaved";
+            ParseData(req.substr(req.find("\r\n\r\n") + 4), currentUserName, currentUserName, currentUserName, currentUserName, currentUserName, currentUserName, currentUserName);
+            if(SaveIncident(sqlConn, GetP(body,"type"), GetP(body,"location"), GetP(body,"time"), GetP(body,"lat"), GetP(body,"lng"), currentUserName)) resp = "HTTP/1.1 200 OK\r\n\r\nSaved";
             else resp = "HTTP/1.1 500 Error\r\n\r\nFail";
         }
         else if (req.find("GET /get_incidents") != string::npos) {
-            string data = GetAllIncidents(sqlConn);
-            resp = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n" + data;
+            resp = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n" + GetAllIncidents(sqlConn);
         }
         else if (req.find("POST /update_incident") != string::npos) {
-            ParseData(req.substr(req.find("\r\n\r\n") + 4), type, loc, time, lat, lng, id, action);
-            string status = (action == "approve") ? "Approved" : "Rejected";
-            if(UpdateIncidentStatus(sqlConn, id, status)) resp = "HTTP/1.1 200 OK\r\n\r\nUpdated";
+            string status = (GetP(body,"action") == "approve") ? "Approved" : "Rejected";
+            if(UpdateIncidentStatus(sqlConn, GetP(body,"id"), status)) resp = "HTTP/1.1 200 OK\r\n\r\nUpdated";
+            else resp = "HTTP/1.1 500 Error\r\n\r\nFail";
+        }
+        else if (req.find("GET /get_evacuation") != string::npos) {
+            resp = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n" + GetEvacuationList(sqlConn);
+        }
+        else if (req.find("POST /start_evacuation") != string::npos) {
+            if(StartEvacuation(sqlConn, GetP(body,"block"))) resp = "HTTP/1.1 200 OK\r\n\r\nStarted";
+            else resp = "HTTP/1.1 500 Error\r\n\r\nFail";
+        }
+        else if (req.find("POST /generate_report") != string::npos) {
+            GenerateUnsafeReport(sqlConn);
+            resp = "HTTP/1.1 200 OK\r\n\r\nGenerated";
+        }
+        else if (req.find("POST /mark_safe") != string::npos) {
+            if(MarkStudentSafe(sqlConn, GetP(body,"id"))) resp = "HTTP/1.1 200 OK\r\n\r\nUpdated";
+            else resp = "HTTP/1.1 500 Error\r\n\r\nFail";
+        }
+        else if (req.find("POST /self_safe") != string::npos) {
+            string myID = GetUserIdByName(sqlConn, currentUserName);
+            if(MarkStudentSafe(sqlConn, myID)) resp = "HTTP/1.1 200 OK\r\n\r\nUpdated";
             else resp = "HTTP/1.1 500 Error\r\n\r\nFail";
         }
         else if (req.find("GET /dashboard.css") != string::npos) resp = "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n" + LoadFile("dashboard.css");
