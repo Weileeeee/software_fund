@@ -1,0 +1,2 @@
+vcpkg install curl
+vcpkg integrate install
