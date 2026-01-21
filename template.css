@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background: #FFFFFF;
+}
+
+nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 70px;
+    width: 100%;
+    background-color: #FFFFFF;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+.nav-bar {
+    height: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo a {
+    font-size: 25px;
+    font-weight: 600;
+    color: #000000;
+    text-decoration: none;
+}
+
+.nav-links {
+    display: flex;
+    list-style: none;
+}
+
+.nav-links li a {
+    font-size: 16px;
+    color: #000000;
+    text-decoration: none;
+    padding: 10px 15px;
+    font-weight: 500;
+}
+
+/* Right Side Container */
+.right-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+/* Search Box */
+.search-field {
+    position: relative;
+    height: 40px;
+    width: 180px;
+    background-color: #F0F0F0;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+}
+
+.search-field input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 0 10px;
+    color: #000;
+}
+
+.search-field i {
+    padding-right: 10px;
+    color: #000;
+}
+
+/* Three Buttons Container */
+.nav-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    font-size: 24px; /* Size of icons */
+    color: #000000; /* Black icons */
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.nav-btn:hover {
+    background-color: #f0f0f0;
+    border-radius: 50%;
+}
