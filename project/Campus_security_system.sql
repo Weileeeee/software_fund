@@ -99,3 +99,9 @@ INSERT INTO EvacuationLogs (user_id, status)
 SELECT user_id, 'Safe' 
 FROM Users 
 WHERE role = 'Student';
+ALTER TABLE Users ADD COLUMN stay_status VARCHAR(50) DEFAULT 'Present';
+
+ALTER TABLE Incidents 
+ADD COLUMN description TEXT,
+ADD COLUMN severity ENUM('Low', 'Medium', 'High', 'Critical') DEFAULT 'Medium',
+ADD COLUMN evidence_path VARCHAR(255);

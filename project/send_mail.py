@@ -4,10 +4,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # ============================================================
-# ⚙️ CONFIG (Update these)
+# ⚙️ CONFIGURATION (YOU MUST CHANGE THIS)
 # ============================================================
-SENDER_EMAIL = "leongweilee49@gmail.com"  
-SENDER_PASSWORD = "gjmp brcv xziv ggxp"        
+# 1. Put YOUR Gmail address here
+SENDER_EMAIL = "soh20040101@gmail.com"  
+SENDER_PASSWORD = "zdwz jjej iqli pbla"
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -20,15 +21,12 @@ def send_broadcast_notification(email_list_str, incident_type, location):
         print("[Python] No recipients found.")
         return
 
-    print(f"\n[Python] BROADCASTING to {len(recipients)} students...")
-    subject = f"⚠️ CAMPUS ALERT: {incident_type} at {location}"
+    print(f"[Python] BROADCASTING to {len(recipients)} students...")
     
+    subject = f"⚠️ CAMPUS ALERT: {incident_type} at {location}"
     body = f"""
     URGENT CAMPUS ALERT
     ===================
-    
-    Security has confirmed an incident on campus.
-    
     TYPE:     {incident_type}
     LOCATION: {location}
     STATUS:   ACTIVE - PLEASE AVOID THE AREA
@@ -38,10 +36,14 @@ def send_broadcast_notification(email_list_str, incident_type, location):
     """
 
     try:
+        # Connect to Gmail
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls() 
+        
+        # Login
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
 
+        # Send Emails
         count = 0
         for student_email in recipients:
             msg = MIMEMultipart()
@@ -60,8 +62,13 @@ def send_broadcast_notification(email_list_str, incident_type, location):
         server.quit()
         print(f"[Python] ✅ Broadcast Complete: {count}/{len(recipients)} sent.")
         
+    except smtplib.SMTPAuthenticationError:
+        print("\n[Python] ❌ AUTHENTICATION ERROR!")
+        print("1. Check if SENDER_EMAIL is correct.")
+        print("2. Check if SENDER_PASSWORD is a valid 16-char App Password.")
+        print("3. Ensure 2-Step Verification is ON in your Google Account.\n")
     except Exception as e:
-        print(f"[Python] ❌ FAILED: {str(e)}")
+        print(f"[Python] ❌ GENERAL ERROR: {str(e)}")
 
 if __name__ == "__main__":
     if len(sys.argv) > 3:

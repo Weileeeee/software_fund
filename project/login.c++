@@ -161,52 +161,62 @@ bool GetIncidentDetails(SQLHDBC sqlConnHandle, string incidentId, string &outTyp
     SQLFreeHandle(SQL_HANDLE_STMT, hStmt); return false;
 }
 
+// Helper to trim whitespace/newlines
+string Trim(const string& str) {
+    size_t first = str.find_first_not_of(" \t\n\r");
+    if (string::npos == first) return str;
+    size_t last = str.find_last_not_of(" \t\n\r");
+    return str.substr(first, (last - first + 1));
+}
+
 string GetAllStudentEmails(SQLHDBC sqlConnHandle) {
     SQLHSTMT hStmt;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
     string query = "SELECT email FROM Users WHERE role = 'Student';";
     if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) return "";
+    
     string allEmails = "";
     char emailBuf[100];
     while (SQLFetch(hStmt) == SQL_SUCCESS) {
         SQLGetData(hStmt, 1, SQL_C_CHAR, emailBuf, sizeof(emailBuf), NULL);
-        string e = string(emailBuf);
+        string e = Trim(string(emailBuf)); // Clean the email
         if (!e.empty()) allEmails += e + ",";
     }
     if (!allEmails.empty() && allEmails.back() == ',') allEmails.pop_back();
     SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
     return allEmails;
 }
-
 // 5. Update Status + Trigger Python Broadcast
 //
 bool UpdateIncidentStatus(SQLHDBC sqlConnHandle, string id, string newStatus) {
     SQLHSTMT hStmt;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
     string query = "UPDATE Incidents SET incident_status='" + newStatus + "' WHERE incident_id=" + id + ";";
-    
     bool success = (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS);
     SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
     
-    // BROADCAST LOGIC
     if (success && newStatus == "Approved") {
         string type, loc;
         if (GetIncidentDetails(sqlConnHandle, id, type, loc)) {
             string allRecipients = GetAllStudentEmails(sqlConnHandle);
+            
+            // Clean inputs to prevent command breakage
+            type = Trim(type);
+            loc = Trim(loc);
+
             if (!allRecipients.empty()) {
                 cout << "[BROADCAST] Emailing students: " << allRecipients << endl;
                 
-                // 1. Get current directory for the script
                 string scriptPath = GetCurrentDir() + "\\send_mail.py";
                 
-                // 2. Use your absolute path to the Python launcher
-                string pyLauncher = "\"C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Launcher\\py.exe\"";
+                // Construct command explicitly with cmd /c to handle paths better
+                string cmd = "cmd /c python \"" + scriptPath + "\" \"" + allRecipients + "\" \"" + type + "\" \"" + loc + "\"";
                 
-                // 3. Construct command: py.exe "path\to\script.py" "emails" "type" "location"
-                string cmd = pyLauncher + " \"" + scriptPath + "\" \"" + allRecipients + "\" \"" + type + "\" \"" + loc + "\"";
+                // Debug: Print the exact command being run
+                cout << "[DEBUG] Running Command: " << cmd << endl;
                 
-                // 4. Execute the command
-                system(cmd.c_str());
+                int result = system(cmd.c_str());
+                if(result != 0) cout << "[ERROR] Python script failed with code: " << result << endl;
             }
         }
     }
