@@ -35,7 +35,7 @@
                     <span class="link_name">Student Status</span>
                 </a>
             </li>
-            <li class="lecturer-only" style="display: none;">
+            <li>
                 <a href="#" class="nav-link" data-target="communication-section">
                     <i class='bx bxs-megaphone'></i>
                     <span class="link_name">Broadcast</span>
@@ -100,6 +100,13 @@
                     </div>
                 </div>
 
+                <div class="recent-alerts" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h3>Broadcast Instructions</h3>
+                    </div>
+                    <div id="dashboard-broadcasts"></div>
+                </div>
+
                 <div class="details-grid">
                     <div class="recent-alerts">
                         <div class="card-header">
@@ -137,10 +144,6 @@
                         <thead><tr><th>Type</th><th>Location</th><th>Time</th><th>Action</th></tr></thead>
                         <tbody id="pending-tbody"></tbody>
                     </table>
-                    <div class="card-header" style="margin-top: 30px;"><h3>Live Campus Incident Map</h3></div>
-                    <div class="map-container" style="background: white; padding: 10px; border-radius: 12px; box-shadow: 0 5px 10px rgba(0,0,0,0.05);">
-                        <div id="main-map" style="height: 450px; width: 100%; border-radius: 8px; z-index: 1;"></div>
-                    </div>
                 </div>
 
                 <div class="recent-alerts" style="margin-top: 20px;">
@@ -149,6 +152,13 @@
                         <thead><tr><th>Type</th><th>Location</th><th>Time</th><th>Status</th></tr></thead>
                         <tbody id="active-tbody"></tbody>
                     </table>
+                </div>
+
+                <div class="recent-alerts" style="margin-top: 20px;">
+                    <div class="card-header"><h3>Live Campus Incident Map</h3></div>
+                    <div class="map-container" style="background: white; padding: 10px; border-radius: 12px; box-shadow: 0 5px 10px rgba(0,0,0,0.05);">
+                        <div id="main-map" style="height: 450px; width: 100%; border-radius: 8px; z-index: 1;"></div>
+                    </div>
                 </div>
             </div>
 
@@ -196,6 +206,7 @@
                         </div>
                         <button type="submit" class="btn" style="width: 200px;"><i class='bx bxs-send'></i> Send Broadcast</button>
                     </form>
+                    <div id="broadcast-log" style="margin-top: 20px;"></div>
                 </div>
             </div>
 
@@ -233,8 +244,44 @@
 
         document.getElementById('broadcastForm')?.addEventListener('submit', (e) => {
             e.preventDefault();
-            alert('Message broadcasted.');
-            e.target.reset();
+            const to = e.target.querySelector('select').value;
+            const message = e.target.querySelector('textarea').value;
+            fetch('/broadcast', {
+                method: 'POST',
+                body: `to_group=${encodeURIComponent(to)}&message=${encodeURIComponent(message)}`
+            }).then(() => {
+                alert('Message broadcasted.');
+                e.target.reset();
+                // Switch to dashboard to show the broadcast
+                document.querySelector('[data-target="dashboard-section"]').click();
+                // Refresh broadcasts
+                fetch('/get_broadcasts')
+                    .then(res => res.text())
+                    .then(data => {
+                        console.log('Broadcasts data after send:', data);
+                        const dashBroadcasts = document.getElementById('dashboard-broadcasts');
+                        if (dashBroadcasts) {
+                            dashBroadcasts.innerHTML = "";
+                            const broadcasts = data.split(';');
+                            console.log('Broadcasts array:', broadcasts);
+                            broadcasts.forEach(b => {
+                                if (!b.trim()) return;
+                                const [id, to_group, message, sent_at, sent_by] = b.split('|');
+                                console.log('Parsed:', id, to_group, message, sent_at, sent_by);
+                                let deleteBtn = `<button onclick="deleteBroadcast(${id})" style="float:right; background:red; color:white; border:none; padding:2px 5px;">Delete</button>`;
+                                dashBroadcasts.innerHTML += `<div data-id="${id}" style="padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px;"><strong>To: ${to_group}</strong><br>${decodeURIComponent(message)}<br><small>Sent by: ${sent_by} at ${sent_at}</small>${deleteBtn}</div>`;
+                            });
+                            console.log('Dashboard updated');
+                        }
+                        const log = document.getElementById('broadcast-log');
+                        if (log) {
+                            const timestamp = new Date().toLocaleString();
+                            const broadcastId = Date.now(); // Simple ID for frontend log
+                            log.innerHTML += `<div data-id="${broadcastId}" style="padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px;"><strong>To: ${to}</strong><br>${message}<br><small>Sent at: ${timestamp}</small></div>`;
+                        }
+                    })
+                    .catch(err => console.error('Refresh broadcasts failed:', err));
+            });
         });
     </script>
 </body>
