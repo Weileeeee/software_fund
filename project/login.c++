@@ -11,23 +11,29 @@
 #include <sql.h>
 
 #pragma comment(lib, "ws2_32.lib") 
+#pragma comment(lib, "odbc32.lib")
 
 using namespace std;
 
-// CONFIG
+// =============================================================
+// ⚙️ CONFIGURATION
+// =============================================================
 const string DB_HOST = "127.0.0.1";
 const string DB_NAME = "CampusSecurityDB";
 const string DB_USER = "root";
-const string DB_PASS = "admin@1234"; 
+const string DB_PASS = "admin@1234"; // Update with your actual password
 const int SERVER_PORT = 8080;
 
+// GLOBAL STATE
 string currentUserName = "Guest";
 string currentUserRole = "student"; 
 string currentUserBlock = "";
 
-// --- 1. HELPER FUNCTIONS (MUST BE AT TOP) ---
+// =============================================================
+// 🛠️ HELPER FUNCTIONS
+// =============================================================
 
-// Get Current Directory
+// Get Current Directory (to find python script)
 string GetCurrentDir() {
     char buffer[MAX_PATH];
     GetModuleFileNameA(NULL, buffer, MAX_PATH);
@@ -44,31 +50,47 @@ string LoadFile(string filename) {
     return buffer.str();
 }
 
-// Parse URL Param
+// Parse URL Parameter
 string GetP(string b, string k) {
     size_t s = b.find(k + "="); if (s == string::npos) return "";
     s += k.length() + 1; 
     size_t e = b.find("&", s); 
     if (e == string::npos) e = b.length();
     string v = b.substr(s, e - s); 
-    for(char &c : v) if(c == '+') c = ' '; 
-    return v;
+    
+    // URL Decode (Basic)
+    string decoded;
+    for (size_t i = 0; i < v.length(); ++i) {
+        if (v[i] == '+') decoded += ' ';
+        else if (v[i] == '%' && i + 2 < v.length()) {
+            string hex = v.substr(i + 1, 2);
+            char c = (char)strtol(hex.c_str(), NULL, 16);
+            decoded += c;
+            i += 2;
+        } else {
+            decoded += v[i];
+        }
+    }
+    return decoded;
 }
 
-// Parse All Data (Helper wrapper)
-void ParseData(string body, string &outType, string &outLoc, string &outTime, string &outLat, string &outLng, string &outID, string &outAction) {
-    auto getVal = [&](string key) {
-        size_t s = body.find(key + "="); if (s == string::npos) return string("");
-        s += key.length() + 1; size_t e = body.find("&", s); if (e == string::npos) e = body.length();
-        string v = body.substr(s, e - s); for(char &c:v) if(c=='+')c=' '; return v;
-    };
-    outType = getVal("type"); outLoc = getVal("location"); outTime = getVal("time");
-    outLat = getVal("lat"); outLng = getVal("lng");
-    outID = getVal("id"); outAction = getVal("action");
+// Helper to parse all common POST data at once
+void ParseData(string body, string &outType, string &outLoc, string &outTime, string &outLat, string &outLng, string &outID, string &outAction, string &outBlock) {
+    outType = GetP(body, "type");
+    outLoc = GetP(body, "location");
+    outTime = GetP(body, "time");
+    outLat = GetP(body, "lat");
+    outLng = GetP(body, "lng");
+    outID = GetP(body, "id");
+    outAction = GetP(body, "action");
+    outBlock = GetP(body, "block");
 }
 
-// --- 2. DATABASE FUNCTIONS ---
+// =============================================================
+// 🗄️ DATABASE & LOGIC FUNCTIONS
+// =============================================================
 
+// 1. Login Logic
 bool AttemptLogin(SQLHDBC sqlConnHandle, string user, string pass, string &outFullName, string &outRole, string &outBlock) {
     SQLHSTMT hStmt;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
@@ -85,9 +107,15 @@ bool AttemptLogin(SQLHDBC sqlConnHandle, string user, string pass, string &outFu
     SQLFreeHandle(SQL_HANDLE_STMT, hStmt); return false;
 }
 
+// 2. Incident Reporting
 bool SaveIncident(SQLHDBC sqlConnHandle, string type, string loc, string time, string lat, string lng, string reporterName) {
     SQLHSTMT hStmt;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
+    
+    // Handle optional Lat/Lng
+    if(lat.empty()) lat = "0.0";
+    if(lng.empty()) lng = "0.0";
+
     string query = "INSERT INTO Incidents (reporter_name, incident_type, location_name, reported_at, incident_status, latitude, longitude, description) VALUES ('" 
                    + reporterName + "', '" + type + "', '" + loc + "', CONCAT(CURDATE(), ' ', '" + time + ":00'), 'Pending', " + lat + ", " + lng + ", 'Reported via Web');";
     bool success = (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS);
@@ -95,6 +123,7 @@ bool SaveIncident(SQLHDBC sqlConnHandle, string type, string loc, string time, s
     return success;
 }
 
+// 3. Get Incidents List
 string GetAllIncidents(SQLHDBC sqlConnHandle) {
     SQLHSTMT hStmt;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
@@ -116,8 +145,7 @@ string GetAllIncidents(SQLHDBC sqlConnHandle) {
     return result;
 }
 
-// --- BROADCASTING & UPDATE ---
-
+// 4. Email Helpers (From File 2)
 bool GetIncidentDetails(SQLHDBC sqlConnHandle, string incidentId, string &outType, string &outLoc) {
     SQLHSTMT hStmt;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
@@ -150,6 +178,8 @@ string GetAllStudentEmails(SQLHDBC sqlConnHandle) {
     return allEmails;
 }
 
+// 5. Update Status + Trigger Python Broadcast
+//
 bool UpdateIncidentStatus(SQLHDBC sqlConnHandle, string id, string newStatus) {
     SQLHSTMT hStmt;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
@@ -158,15 +188,24 @@ bool UpdateIncidentStatus(SQLHDBC sqlConnHandle, string id, string newStatus) {
     bool success = (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS);
     SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
     
-    // Broadcast Logic
+    // BROADCAST LOGIC
     if (success && newStatus == "Approved") {
         string type, loc;
         if (GetIncidentDetails(sqlConnHandle, id, type, loc)) {
             string allRecipients = GetAllStudentEmails(sqlConnHandle);
             if (!allRecipients.empty()) {
-                cout << "[BROADCAST] Sending Email to: " << allRecipients << endl;
+                cout << "[BROADCAST] Emailing students: " << allRecipients << endl;
+                
+                // 1. Get current directory for the script
                 string scriptPath = GetCurrentDir() + "\\send_mail.py";
-                string cmd = "python \"" + scriptPath + "\" \"" + allRecipients + "\" \"" + type + "\" \"" + loc + "\"";
+                
+                // 2. Use your absolute path to the Python launcher
+                string pyLauncher = "\"C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Launcher\\py.exe\"";
+                
+                // 3. Construct command: py.exe "path\to\script.py" "emails" "type" "location"
+                string cmd = pyLauncher + " \"" + scriptPath + "\" \"" + allRecipients + "\" \"" + type + "\" \"" + loc + "\"";
+                
+                // 4. Execute the command
                 system(cmd.c_str());
             }
         }
@@ -174,15 +213,25 @@ bool UpdateIncidentStatus(SQLHDBC sqlConnHandle, string id, string newStatus) {
     return success;
 }
 
-// --- EVACUATION ---
-
+// 6. Evacuation Logic (From File 1)
 bool StartEvacuation(SQLHDBC sqlConnHandle, string block) {
     SQLHSTMT hStmt;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
-    cout << "[EVACUATION] Starting for Block: " << block << endl;
-    string query = "UPDATE EvacuationLogs e JOIN Users u ON e.user_id = u.user_id "
-                   "SET e.status = 'Missing' "
-                   "WHERE u.role = 'Student' AND u.block = '" + block + "';";
+    cout << "[EVACUATION] Triggered for: " << (block.empty() ? "ALL HOSTELS" : block) << endl;
+    
+    string query;
+    if (block.empty() || block == "ALL") {
+        // CASE A: Evacuate EVERYONE in a hostel (Global Alarm)
+        query = "UPDATE EvacuationLogs e JOIN Users u ON e.user_id = u.user_id "
+                "SET e.status = 'Missing' " // Missing = Unsafe
+                "WHERE u.role = 'Student' AND u.block IS NOT NULL AND u.block <> '' AND u.block <> '-';";
+    } else {
+        // CASE B: Evacuate specific block only
+        query = "UPDATE EvacuationLogs e JOIN Users u ON e.user_id = u.user_id "
+                "SET e.status = 'Missing' "
+                "WHERE u.role = 'Student' AND u.block = '" + block + "';";
+    }
+
     bool success = (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) == SQL_SUCCESS);
     SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
     return success;
@@ -212,8 +261,14 @@ void GenerateUnsafeReport(SQLHDBC sqlConnHandle) {
 string GetEvacuationList(SQLHDBC sqlConnHandle) {
     SQLHSTMT hStmt;
     SQLAllocHandle(SQL_HANDLE_STMT, sqlConnHandle, &hStmt);
-    string query = "SELECT u.user_id, u.full_name, IFNULL(u.block, '-'), e.status, DATE_FORMAT(e.last_updated, '%H:%i:%s') FROM Users u JOIN EvacuationLogs e ON u.user_id = e.user_id WHERE u.role = 'Student';";
+    
+    // CHANGED: Added "AND u.block <> '' AND u.block <> '-'" to exclude day scholars
+    string query = "SELECT u.user_id, u.full_name, IFNULL(u.block, '-'), e.status, DATE_FORMAT(e.last_updated, '%H:%i:%s') "
+                   "FROM Users u JOIN EvacuationLogs e ON u.user_id = e.user_id "
+                   "WHERE u.role = 'Student' AND u.block IS NOT NULL AND u.block <> '' AND u.block <> '-';";
+
     if (SQLExecDirectA(hStmt, (SQLCHAR*)query.c_str(), SQL_NTS) != SQL_SUCCESS) return "";
+    
     string result = "";
     char id[20], name[100], block[20], status[20], time[50];
     while (SQLFetch(hStmt) == SQL_SUCCESS) {
@@ -252,9 +307,12 @@ string GetUserIdByName(SQLHDBC sqlConnHandle, string username) {
     return id;
 }
 
-// --- 3. MAIN FUNCTION ---
+// =============================================================
+// 🚀 MAIN SERVER LOOP
+// =============================================================
 
 int main() {
+    // Database Connection
     SQLHENV sqlEnv; SQLHDBC sqlConn;
     SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &sqlEnv);
     SQLSetEnvAttr(sqlEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
@@ -265,26 +323,38 @@ int main() {
         cout << "[FATAL] DB Connection Failed" << endl; return -1;
     }
 
+    // Socket Setup
     WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa);
     SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in addr; addr.sin_family = AF_INET; addr.sin_addr.s_addr = INADDR_ANY; addr.sin_port = htons(SERVER_PORT);
     bind(s, (sockaddr*)&addr, sizeof(addr)); listen(s, SOMAXCONN);
-    cout << "Server Running..." << endl;
-    ShellExecuteA(0, 0, "http://localhost:8080", 0, 0, SW_SHOW);
+    
+    cout << "Server Running at http://localhost:" << SERVER_PORT << endl;
+    ShellExecuteA(0, 0, ("http://localhost:" + to_string(SERVER_PORT)).c_str(), 0, 0, SW_SHOW);
 
     while (true) {
         SOCKET c = accept(s, NULL, NULL);
-        char buf[4096] = {0}; recv(c, buf, 4096, 0);
-        string req(buf), resp, body = req.substr(req.find("\r\n\r\n") + 4);
+        char buf[8192] = {0}; 
+        recv(c, buf, 8192, 0);
+        string req(buf);
+        string body = "";
+        
+        // Split header and body
+        size_t bodyPos = req.find("\r\n\r\n");
+        if(bodyPos != string::npos) body = req.substr(bodyPos + 4);
 
+        string resp = "HTTP/1.1 404 Not Found\r\n\r\n";
+
+        // ROUTING
         if (req.find("GET / ") != string::npos || req.find("GET /login.html") != string::npos) {
             resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + LoadFile("login.html");
         } 
         else if (req.find("POST /login") != string::npos) {
             string u = GetP(body, "userid"); string p = GetP(body, "password");
             if (AttemptLogin(sqlConn, u, p, currentUserName, currentUserRole, currentUserBlock)) {
+                cout << "Login: " << currentUserName << " (" << currentUserRole << ")" << endl;
                 resp = "HTTP/1.1 303 See Other\r\nLocation: /home.html\r\n\r\n";
-            } else resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + LoadFile("login.html") + "<script>alert('Fail');</script>";
+            } else resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + LoadFile("login.html") + "<script>alert('Login Failed');</script>";
         }
         else if (req.find("GET /home.html") != string::npos) {
             string h = LoadFile("home.html"); 
@@ -293,9 +363,17 @@ int main() {
             size_t p = h.find("Welcome, User"); if(p!=string::npos) h.replace(p,13,"Welcome, "+currentUserName);
             resp = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + h;
         }
+        else if (req.find("GET /script.js") != string::npos) {
+            resp = "HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\n\r\n" + LoadFile("script.js");
+        }
+        else if (req.find("GET /dashboard.css") != string::npos) {
+            resp = "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n" + LoadFile("dashboard.css");
+        }
+        // INCIDENTS
         else if (req.find("POST /report_incident") != string::npos) {
-            ParseData(req.substr(req.find("\r\n\r\n") + 4), currentUserName, currentUserName, currentUserName, currentUserName, currentUserName, currentUserName, currentUserName);
-            if(SaveIncident(sqlConn, GetP(body,"type"), GetP(body,"location"), GetP(body,"time"), GetP(body,"lat"), GetP(body,"lng"), currentUserName)) resp = "HTTP/1.1 200 OK\r\n\r\nSaved";
+            string type, loc, time, lat, lng, id, action, block;
+            ParseData(body, type, loc, time, lat, lng, id, action, block);
+            if(SaveIncident(sqlConn, type, loc, time, lat, lng, currentUserName)) resp = "HTTP/1.1 200 OK\r\n\r\nSaved";
             else resp = "HTTP/1.1 500 Error\r\n\r\nFail";
         }
         else if (req.find("GET /get_incidents") != string::npos) {
@@ -306,6 +384,7 @@ int main() {
             if(UpdateIncidentStatus(sqlConn, GetP(body,"id"), status)) resp = "HTTP/1.1 200 OK\r\n\r\nUpdated";
             else resp = "HTTP/1.1 500 Error\r\n\r\nFail";
         }
+        // EVACUATION
         else if (req.find("GET /get_evacuation") != string::npos) {
             resp = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n" + GetEvacuationList(sqlConn);
         }
@@ -326,8 +405,6 @@ int main() {
             if(MarkStudentSafe(sqlConn, myID)) resp = "HTTP/1.1 200 OK\r\n\r\nUpdated";
             else resp = "HTTP/1.1 500 Error\r\n\r\nFail";
         }
-        else if (req.find("GET /dashboard.css") != string::npos) resp = "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n" + LoadFile("dashboard.css");
-        else if (req.find("GET /script.js") != string::npos) resp = "HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\n\r\n" + LoadFile("script.js");
 
         send(c, resp.c_str(), resp.length(), 0); closesocket(c);
     }

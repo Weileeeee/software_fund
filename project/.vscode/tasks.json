@@ -10,9 +10,11 @@
                 "${file}",
                 "-o",
                 "${fileDirname}\\${fileBasenameNoExtension}.exe",
-                "-lodbc32",  
+                "-lwinhttp",
+                "-lodbc32",
                 "-lws2_32",
             ],
+            
             "options": {
                 "cwd": "${fileDirname}"
             },
