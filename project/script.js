@@ -1,11 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
-    
+
     // =========================================================
     // 🔐 AUTH & GRANULAR PERMISSIONS
     // =========================================================
-    
+
     // 1. Get the Raw Role from C++ (e.g., "Student", "Warden", "Security", "Admin")
-    const serverRole = window.SERVER_INJECTED_ROLE || 'student'; 
+    const serverRole = window.SERVER_INJECTED_ROLE || 'student';
     const roleLower = serverRole.toLowerCase();
 
     console.log(`Logged in as: ${serverRole}`);
@@ -15,10 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const permissions = {
         // Can approve/reject incidents (Admin + Security)
         canManageIncidents: roleLower.includes('admin') || roleLower.includes('security'),
-        
+
         // Can start evacuations and mark students safe (Admin + Warden)
         canManageEvacuation: roleLower.includes('admin') || roleLower.includes('warden'),
-        
+
         // Is a regular student (no staff panels)
         isStudent: !roleLower.includes('admin') && !roleLower.includes('security') && !roleLower.includes('warden')
     };
@@ -31,12 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarBtn = document.querySelector(".sidebarBtn");
     const navLinks = document.querySelectorAll(".nav-link");
     const tabContents = document.querySelectorAll(".tab-content");
-    
+
     // Panels & Buttons
     const securityPanel = document.getElementById("security-panel");
     const wardenPanel = document.getElementById("warden-panel");
     const reportBox = document.getElementById("report-box");
-    
+
     const reportBtn = document.getElementById("openModalBtn");
     const dashReportBtn = document.getElementById("dashReportBtn");
     const iAmSafeBtn = document.getElementById("iAmSafeBtn");
@@ -54,10 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeTbody = document.getElementById('active-tbody');
     const pendingTbody = document.getElementById('pending-tbody');
     const evacuationTbody = document.getElementById("evacuation-tbody");
-    
+
     // Maps
-    let map; 
-    let miniMap; 
+    let map;
+    let miniMap;
     let markers = [];
     let reportLat = 0;
     let reportLng = 0;
@@ -76,23 +76,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Student Specific UI
         if (permissions.isStudent) {
-            if(reportBtn) reportBtn.style.display = "block";
-            if(reportBox) reportBox.style.display = "flex";
-            if(iAmSafeBtn) iAmSafeBtn.style.display = "block";
+            if (reportBox) reportBox.style.display = "flex";
+            if (iAmSafeBtn) iAmSafeBtn.style.display = "block";
             document.body.classList.add('role-student');
         } else {
             // Staff/Warden View
-            if(reportBtn) reportBtn.style.display = "none";
-            if(reportBox) reportBox.style.display = "none";
-            if(iAmSafeBtn) iAmSafeBtn.style.display = "none";
+            if (reportBox) reportBox.style.display = "none";
+            if (iAmSafeBtn) iAmSafeBtn.style.display = "none";
             document.body.classList.add('role-staff');
+        }
+
+        // ENABLE REPORTING FOR ALL ROLES (Admin, Warden, Security, Student)
+        if (reportBtn) reportBtn.style.display = "block";
+
+        // Show Warden Specific Dashboard Panel
+        const wardenDashPanel = document.getElementById("warden-dash-panel");
+        if (wardenDashPanel) {
+            wardenDashPanel.style.display = permissions.canManageEvacuation ? "flex" : "none";
+        }
+
+        // HIDE SIDEBAR LINKS FOR NON-WARDENS (Residents/Evacuation)
+        const evLink = document.querySelector('.nav-link[data-target="evacuation-section"]');
+        const resLink = document.querySelector('.nav-link[data-target="residence-section"]');
+
+        if (evLink && evLink.parentElement) {
+            evLink.parentElement.style.display = permissions.canManageEvacuation ? "block" : "none";
+        }
+        if (resLink && resLink.parentElement) {
+            resLink.parentElement.style.display = permissions.canManageEvacuation ? "block" : "none";
         }
     }
     initRoleView();
 
     // --- 2. Navigation & Sidebar ---
-    if(sidebarBtn) {
-        sidebarBtn.onclick = function() {
+    if (sidebarBtn) {
+        sidebarBtn.onclick = function () {
             sidebar.classList.toggle("active");
         }
     }
@@ -106,19 +124,20 @@ document.addEventListener('DOMContentLoaded', () => {
             link.classList.add("active");
             const targetId = link.getAttribute("data-target");
             const targetContent = document.getElementById(targetId);
-            
+
             if (targetContent) {
                 targetContent.style.display = "block";
-                
+
                 // Lazy Load Components
                 if (targetId === "incidents-section") setTimeout(() => initMainMap(), 200);
                 if (targetId === "dashboard-section") setTimeout(() => initMiniMap(), 200);
                 if (targetId === "evacuation-section") fetchEvacuationData();
+                if (targetId === "residence-section") fetchResidenceData();
             }
         });
     });
 
-    if(logoutBtn) {
+    if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
             window.location.href = 'login.html';
@@ -132,19 +151,19 @@ document.addEventListener('DOMContentLoaded', () => {
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap'
             }).addTo(map);
-            
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(pos => {
                     const lat = pos.coords.latitude;
                     const lng = pos.coords.longitude;
                     L.circleMarker([lat, lng], { radius: 6, color: 'blue', fillColor: '#3498db', fillOpacity: 0.8 })
-                      .addTo(map).bindPopup("You are here");
+                        .addTo(map).bindPopup("You are here");
                 });
             }
             fetchIncidents();
         } else {
-            map.invalidateSize(); 
-            fetchIncidents(); 
+            map.invalidateSize();
+            fetchIncidents();
         }
     }
 
@@ -163,48 +182,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function fetchIncidents() {
         fetch('/get_incidents')
-        .then(res => res.text())
-        .then(data => {
-            if(activeTbody) activeTbody.innerHTML = "";
-            if(pendingTbody) pendingTbody.innerHTML = "";
-            
-            markers.forEach(m => map.removeLayer(m));
-            markers = [];
+            .then(res => res.text())
+            .then(data => {
+                if (activeTbody) activeTbody.innerHTML = "";
+                if (pendingTbody) pendingTbody.innerHTML = "";
 
-            const rows = data.split(';');
-            rows.forEach(rowStr => {
-                if(!rowStr) return;
-                const [id, type, loc, time, status, lat, lng] = rowStr.split('|');
-                
-                if (status === 'Approved') {
-                    const tr = document.createElement('tr');
-                    let actionHtml = `<span class="badge info">View Only</span>`;
-                    
-                    if (permissions.canManageIncidents) {
-                        actionHtml = `<button class="delete-btn" onclick="resolveIncident('${id}')">Resolve</button>`;
-                    }
+                markers.forEach(m => map.removeLayer(m));
+                markers = [];
 
-                    tr.innerHTML = `<td>${type}</td><td>${loc}</td><td>${time}</td><td><span class="badge approved">Active</span></td><td>${actionHtml}</td>`;
-                    if(activeTbody) activeTbody.appendChild(tr);
-                    
-                    if (map && lat && lng) {
-                        const m = L.marker([parseFloat(lat), parseFloat(lng)]).addTo(map)
-                            .bindPopup(`<b>${type}</b><br>${loc}`);
-                        markers.push(m);
+                const rows = data.split(';');
+                rows.forEach(rowStr => {
+                    if (!rowStr) return;
+                    const [id, type, loc, time, status, lat, lng] = rowStr.split('|');
+
+                    if (status === 'Approved') {
+                        const tr = document.createElement('tr');
+                        let actionHtml = `<span class="badge info">View Only</span>`;
+
+                        if (permissions.canManageIncidents) {
+                            actionHtml = `<button class="delete-btn" onclick="resolveIncident('${id}')">Resolve</button>`;
+                        }
+
+                        tr.innerHTML = `<td>${type}</td><td>${loc}</td><td>${time}</td><td><span class="badge approved">Active</span></td><td>${actionHtml}</td>`;
+                        if (activeTbody) activeTbody.appendChild(tr);
+
+                        if (map && lat && lng) {
+                            const m = L.marker([parseFloat(lat), parseFloat(lng)]).addTo(map)
+                                .bindPopup(`<b>${type}</b><br>${loc}`);
+                            markers.push(m);
+                        }
                     }
-                } 
-                else if (status === 'Pending' && permissions.canManageIncidents) {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
+                    else if (status === 'Pending' && permissions.canManageIncidents) {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
                         <td>${type}</td><td>${loc}</td><td>${time}</td>
                         <td>
                             <button class="approve-btn" onclick="postUpdate('${id}', 'approve')">Approve</button>
                             <button class="delete-btn" onclick="postUpdate('${id}', 'reject')">Reject</button>
                         </td>`;
-                    if(pendingTbody) pendingTbody.appendChild(tr);
-                }
+                        if (pendingTbody) pendingTbody.appendChild(tr);
+                    }
+                });
             });
-        });
     }
 
     // --- 4. Reporting Logic ---
@@ -212,148 +231,276 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.style.display = "flex";
         const locInput = document.getElementById('inLoc');
         locInput.value = "📍 Locating...";
+        getGPS(locInput);
+    };
 
+    const showWardenModal = () => {
+        const wModal = document.getElementById('wardenReportModal');
+        if (wModal) {
+            wModal.style.display = "flex";
+            const locInput = document.getElementById('wInLoc');
+            locInput.value = "📍 Locating...";
+            getGPS(locInput);
+        }
+    };
+
+    function getGPS(inputElement) {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     reportLat = position.coords.latitude;
                     reportLng = position.coords.longitude;
-                    locInput.value = `📍 GPS (${reportLat.toFixed(4)}, ${reportLng.toFixed(4)})`;
+                    inputElement.value = `📍 GPS (${reportLat.toFixed(4)}, ${reportLng.toFixed(4)})`;
                 },
                 (error) => {
-                    locInput.value = "";
-                    locInput.placeholder = "Location failed";
+                    inputElement.value = "";
+                    inputElement.placeholder = "Location failed";
                     reportLat = 2.9276; reportLng = 101.6413;
                 }
             );
         }
-    };
+    }
 
-    if(reportBtn) reportBtn.addEventListener('click', showReportModal);
-    if(dashReportBtn) dashReportBtn.addEventListener('click', showReportModal);
-    if(closeBtn) closeBtn.onclick = () => modal.style.display = "none";
+    if (reportBtn) reportBtn.addEventListener('click', showReportModal);
+    if (dashReportBtn) dashReportBtn.addEventListener('click', showReportModal);
 
-    if(incidentForm) {
+    // Bind Warden Button to NEW Modal
+    const wardenReportBtn = document.getElementById("wardenReportBtn");
+    if (wardenReportBtn) wardenReportBtn.addEventListener('click', showWardenModal);
+
+    if (closeBtn) closeBtn.onclick = () => modal.style.display = "none";
+    const closeWardenBtn = document.getElementById("closeWardenModal");
+    if (closeWardenBtn) closeWardenBtn.onclick = () => document.getElementById('wardenReportModal').style.display = "none";
+
+    // Standard Incident Form (Basic)
+    if (incidentForm) {
         incidentForm.onsubmit = (e) => {
             e.preventDefault();
             const type = document.getElementById('inType').value;
             const loc = document.getElementById('inLoc').value;
             const time = document.getElementById('inTime').value;
+            // Basic report sends empty details for optional fields
+            fetch('/report_incident', {
+                method: 'POST',
+                body: `type=${type}&location=${loc}&time=${time}&lat=${reportLat}&lng=${reportLng}&desc=Basic Report&severity=Medium&evidence=`
+            }).then(res => res.text()).then(id => {
+                if (id && id !== "Fail") {
+                    modal.style.display = "none";
+                    incidentForm.reset();
+                    alert("Report Submitted!");
+                    fetchIncidents();
+                } else alert("Failed.");
+            });
+        };
+    }
+
+    // Warden Incident Form (Detailed)
+    const wardenForm = document.getElementById("wardenIncidentForm");
+    if (wardenForm) {
+        wardenForm.onsubmit = (e) => {
+            e.preventDefault();
+            const type = document.getElementById('wInType').value;
+            const loc = document.getElementById('wInLoc').value;
+            const time = document.getElementById('wInTime').value;
+            const desc = document.getElementById('wInDesc').value;
+            const sev = document.getElementById('wInSev').value;
+            const evid = document.getElementById('wInEvid').value;
 
             fetch('/report_incident', {
                 method: 'POST',
-                body: `type=${type}&location=${loc}&time=${time}&lat=${reportLat}&lng=${reportLng}`
-            }).then(res => {
-                if(res.ok) {
-                     modal.style.display = "none";
-                     incidentForm.reset();
-                     alert("Report submitted! Sent to Admin for approval.");
-                }
-            });
+                body: `type=${type}&location=${loc}&time=${time}&lat=${reportLat}&lng=${reportLng}&desc=${desc}&severity=${sev}&evidence=${evid}`
+            })
+                .then(res => res.text())
+                .then(id => {
+                    if (id && id !== "Fail") {
+                        document.getElementById('wardenReportModal').style.display = "none";
+                        wardenForm.reset();
+                        alert(`Warden Log Saved Successfully! \n\nIncident ID: ${id}`);
+                        fetchIncidents();
+                    } else {
+                        alert("Failed to save log.");
+                    }
+                });
         };
     }
 
     // --- 5. Evacuation Logic (Fixed for Hostel/Automark) ---
     function fetchEvacuationData() {
         fetch('/get_evacuation').then(res => res.text()).then(data => {
-            if(!evacuationTbody) return;
+            if (!evacuationTbody) return;
             evacuationTbody.innerHTML = "";
             let missing = 0, safe = 0;
             let amIMissing = false;
-            
+
             const welcomeMsg = document.querySelector('.admin_name') ? document.querySelector('.admin_name').innerText : "";
             const myName = welcomeMsg.replace('Welcome, ', '');
 
             const rows = data.split(';');
             rows.forEach(row => {
-                if(!row.trim()) return;
+                if (!row.trim()) return;
                 const [id, name, block, status, time] = row.split('|');
-                
-                if(status === 'Safe') safe++; else missing++;
-                if(name === myName && status === 'Missing') amIMissing = true;
+
+                if (status === 'Safe') safe++; else missing++;
+                if (name === myName && status === 'Missing') amIMissing = true;
 
                 let btn = "-";
                 if (permissions.canManageEvacuation && status === 'Missing') {
                     btn = `<button class="approve-btn" onclick="markSafe('${id}')">Mark Safe</button>`;
                 }
-                
-                let badge = status === 'Safe' 
-                    ? '<span class="badge approved">Safe</span>' 
+
+                let badge = status === 'Safe'
+                    ? '<span class="badge approved">Safe</span>'
                     : '<span class="badge warning">Missing</span>';
-                
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td>${name}</td><td>${block}</td><td>${badge}</td><td>${time}</td><td>${btn}</td>`;
                 evacuationTbody.appendChild(tr);
             });
 
-            if(document.getElementById('count-missing')) document.getElementById('count-missing').innerText = missing;
-            if(document.getElementById('count-safe')) document.getElementById('count-safe').innerText = safe;
+            if (document.getElementById('count-missing')) document.getElementById('count-missing').innerText = missing;
+            if (document.getElementById('count-safe')) document.getElementById('count-safe').innerText = safe;
 
             // Show "I am Safe" only if student is marked 'Missing' by the Warden
-            if(permissions.isStudent && iAmSafeBtn) {
+            if (permissions.isStudent && iAmSafeBtn) {
                 iAmSafeBtn.style.display = amIMissing ? "block" : "none";
             }
         });
     }
 
     // Fixed: Ensure "ALL" is sent if no block is selected to trigger automark for all hostel students
-    if(startEvacBtn) startEvacBtn.onclick = () => {
+    if (startEvacBtn) startEvacBtn.onclick = () => {
         if (!permissions.canManageEvacuation) {
-             alert("Unauthorized"); return;
+            alert("Unauthorized"); return;
         }
 
         const blkInput = document.getElementById("evacBlock");
-        const blk = (blkInput && blkInput.value) ? blkInput.value : "ALL"; 
+        const blk = (blkInput && blkInput.value) ? blkInput.value : "ALL";
 
-        if(confirm(`🚨 EMERGENCY: Start Evacuation for ${blk === "ALL" ? "ALL HOSTELS" : "Block " + blk}? \n\nThis will mark all hostel residents as UNSAFE.`)) {
+        if (confirm(`🚨 EMERGENCY: Start Evacuation for ${blk === "ALL" ? "ALL HOSTELS" : "Block " + blk}? \n\nThis will mark all hostel residents as UNSAFE.`)) {
             fetch('/start_evacuation', {
                 method: 'POST',
                 body: `block=${blk}`
             })
-            .then(res => {
-                if(res.ok) {
-                    alert("⚠️ Evacuation Started! All hostel students marked 'Missing'. Students must self-verify safety."); 
-                    fetchEvacuationData();
-                }
-            });
+                .then(res => {
+                    if (res.ok) {
+                        alert("⚠️ Evacuation Started! All hostel students marked 'Missing'. Students must self-verify safety.");
+                        fetchEvacuationData();
+                    }
+                });
         }
     };
 
-    if(genReportBtn) genReportBtn.onclick = () => {
+    if (genReportBtn) genReportBtn.onclick = () => {
         if (!permissions.canManageEvacuation) return;
-        fetch('/generate_report', {method:'POST'}).then(()=>alert("Report Generated! Check Server."));
+        fetch('/generate_report', { method: 'POST' }).then(() => alert("Report Generated! Check Server."));
     };
 
-    if(iAmSafeBtn) iAmSafeBtn.onclick = () => { 
-        if(confirm("Confirm you are safe?")) {
-            fetch('/self_safe', {method:'POST'}).then(()=>fetchEvacuationData()); 
+    if (iAmSafeBtn) iAmSafeBtn.onclick = () => {
+        if (confirm("Confirm you are safe?")) {
+            fetch('/self_safe', { method: 'POST' }).then(() => fetchEvacuationData());
         }
     };
 
-    // --- 6. Global Actions ---
-    window.postUpdate = function(id, action) {
+    // --- 6. GLOBAL ACTIONS ---
+    window.postUpdate = function (id, action) {
         if (!permissions.canManageIncidents) return;
         fetch('/update_incident', {
             method: 'POST',
             body: `id=${id}&action=${action}`
         }).then(res => {
-            if(res.ok) {
+            if (res.ok) {
                 alert("Incident " + action + "d!");
                 fetchIncidents();
             }
         });
     };
-    
-    window.resolveIncident = function(id) {
+
+    window.resolveIncident = function (id) {
         if (!permissions.canManageIncidents) return;
-        if(!confirm("Resolve this incident?")) return;
+        if (!confirm("Resolve this incident?")) return;
         postUpdate(id, 'reject');
     };
 
-    window.markSafe = function(id) {
+    window.markSafe = function (id) {
         if (!permissions.canManageEvacuation) return;
-        fetch('/mark_safe', {method:'POST', body:`id=${id}`})
-        .then(()=>fetchEvacuationData());
+        fetch('/mark_safe', { method: 'POST', body: `id=${id}` })
+            .then(() => fetchEvacuationData());
+    }
+
+    // --- 7. RESIDENCE MONITORING ---
+    const resTbody = document.getElementById('residence-tbody');
+    const resSearch = document.getElementById('resSearch');
+    const statusModal = document.getElementById('statusModal');
+    const statusForm = document.getElementById('statusForm');
+
+    function fetchResidenceData() {
+        if (!resTbody) return;
+        fetch('/get_residents')
+            .then(res => res.text())
+            .then(data => {
+                resTbody.innerHTML = "";
+                const rows = data.split(';');
+                rows.forEach(row => {
+                    if (!row) return;
+                    const [id, name, room, status, email] = row.split('|');
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                    <td>${name}</td>
+                    <td>${room}</td>
+                    <td><span class="badge info">${status}</span></td>
+                    <td><a href="mailto:${email}">${email}</a></td>
+                    <td><button class="btn-action btn-safe" onclick="openStatusModal('${id}', '${name}')">Update</button></td>
+                `;
+                    resTbody.appendChild(tr);
+                });
+            });
+    }
+
+    if (resSearch) {
+        resSearch.addEventListener('keyup', () => {
+            const term = resSearch.value.toLowerCase();
+            const rows = resTbody.getElementsByTagName('tr');
+            Array.from(rows).forEach(row => {
+                const name = row.cells[0].innerText.toLowerCase();
+                const room = row.cells[1].innerText.toLowerCase();
+                if (name.includes(term) || room.includes(term)) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        });
+    }
+
+    window.openStatusModal = function (id, name) {
+        document.getElementById('statusUserId').value = id;
+        document.getElementById('statusUserName').innerText = "Update: " + name;
+        statusModal.style.display = "flex";
+    };
+
+    window.closeStatusModal = function () {
+        statusModal.style.display = "none";
+    };
+
+    if (statusForm) {
+        statusForm.onsubmit = function (e) {
+            e.preventDefault();
+            const id = document.getElementById('statusUserId').value;
+            const status = document.getElementById('statusSelect').value;
+
+            fetch('/update_stay_status', {
+                method: 'POST',
+                body: `id=${id}&status=${status}`
+            }).then(res => {
+                if (res.ok) {
+                    alert("Status Updated Successfully");
+                    closeStatusModal();
+                    fetchResidenceData();
+                } else {
+                    alert("Failed to update");
+                }
+            });
+        };
     }
 
     setTimeout(initMiniMap, 500);

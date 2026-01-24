@@ -199,3 +199,49 @@ textarea { resize: vertical; }
     .sidebar.active { width: 240px; } 
     .sidebar.active .nav-links li .link_name { opacity: 1; pointer-events: auto; }
 }
+/* Original styles from your file preserved below... */
+
+/* --- BEAUTIFIED UI ELEMENTS --- */
+.btn-primary, .btn-submit, #saveStayStatusBtn, #genReportBtn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover, #saveStayStatusBtn:hover {
+    background-color: #004a99;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Status Badges for Residents */
+.status-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.status-badge.present { background: #e8f5e9; color: #2e7d32; }
+.status-badge.on-leave { background: #fff3e0; color: #ef6c00; }
+.status-badge.weekend-home { background: #e3f2fd; color: #1565c0; }
+
+/* Modal Shadowing */
+.modal-content {
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    border: none;
+}
