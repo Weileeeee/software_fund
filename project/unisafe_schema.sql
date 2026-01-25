@@ -118,7 +118,8 @@ CREATE TABLE IF NOT EXISTS evacuationlogs (
     status ENUM('Safe', 'Missing', 'Unknown') DEFAULT 'Unknown',
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (alert_id) REFERENCES evacuationalerts(alert_id) ON DELETE SET NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE(user_id) -- Required for INSERT ... ON DUPLICATE KEY UPDATE
 );
 
 -- 11. Evacuation Attendance (Specific Record keeping)

@@ -95,13 +95,21 @@ document.addEventListener('DOMContentLoaded', () => {
             wardenDashPanel.style.display = permissions.canManageEvacuation ? "flex" : "none";
         }
 
-        // HIDE SIDEBAR LINKS FOR NON-WARDENS (Residents/Evacuation)
+        // VISIBILITY: Allow Students to see Evacuation to mark themselves safe
+        // Residence is typically Warden only, but Evacuation needs to be public for self-safety check.
         const evLink = document.querySelector('.nav-link[data-target="evacuation-section"]');
         const resLink = document.querySelector('.nav-link[data-target="residence-section"]');
 
+        // Evacuation: Visible to Wardens AND Students (everyone)
         if (evLink && evLink.parentElement) {
-            evLink.parentElement.style.display = permissions.canManageEvacuation ? "block" : "none";
+            evLink.parentElement.style.display = "block";
         }
+
+        // Residence: Warden Only (Keep hidden for students if desired, or ask user. User said "students also can view", possibly implying both?)
+        // User request: "undo the change about only warden can view evacuation part , make students also can view and mark them themselves safe"
+        // It implies Evacuation is the key one. I will leave Residence as Warden-only unless specified, 
+        // but the prompt said "undo the change about only warden can view evacuation part".
+        // Use logic: Residence -> Warden Only. Evacuation -> All.
         if (resLink && resLink.parentElement) {
             resLink.parentElement.style.display = permissions.canManageEvacuation ? "block" : "none";
         }
@@ -482,25 +490,120 @@ document.addEventListener('DOMContentLoaded', () => {
         statusModal.style.display = "none";
     };
 
-    if (statusForm) {
-        statusForm.onsubmit = function (e) {
-            e.preventDefault();
-            const id = document.getElementById('statusUserId').value;
-            const status = document.getElementById('statusSelect').value;
+    // --- 8. LECTURER PORTAL LOGIC ---
+    // (Only runs if elements exist, i.e., on lecturer.html)
 
-            fetch('/update_stay_status', {
-                method: 'POST',
-                body: `id=${id}&status=${status}`
-            }).then(res => {
-                if (res.ok) {
-                    alert("Status Updated Successfully");
-                    closeStatusModal();
-                    fetchResidenceData();
-                } else {
-                    alert("Failed to update");
+    function fetchBroadcasts() {
+        fetch('/get_broadcasts')
+            .then(res => res.text())
+            .then(data => {
+                const container = document.querySelector('.recent-alerts form'); // Just to find the section? No, let's find a list container.
+                // In lecturer.html, there might be a list or just the form. Feature request imply viewing them too?
+                // The source code showed a 'dashboard-broadcasts' div, let's assume it exists or create one below form
+                let output = document.getElementById('broadcast-list');
+                if (!output) {
+                    const section = document.getElementById('communication-section');
+                    if (section) {
+                        output = document.createElement('div');
+                        output.id = 'broadcast-list';
+                        output.style.marginTop = "20px";
+                        section.querySelector('.recent-alerts').appendChild(output);
+                    }
+                }
+
+                if (output) {
+                    output.innerHTML = "<h3>Sent Broadcasts</h3>";
+                    const rows = data.split(';');
+                    rows.forEach(r => {
+                        if (!r) return;
+                        const [id, to, msg, time, by] = r.split('|');
+                        const div = document.createElement('div');
+                        div.className = "box";
+                        div.style.marginBottom = "10px";
+                        div.innerHTML = `
+                            <div class="right-side" style="width:100%">
+                                <div class="box-topic">To: ${to} <small style="float:right">${time}</small></div>
+                                <p>${msg}</p>
+                                <button onclick="deleteBroadcast('${id}')" style="background:#e74c3c; color:white; border:none; padding:5px; border-radius:3px; cursor:pointer; margin-top:5px;">Delete</button>
+                            </div>
+                        `;
+                        output.appendChild(div);
+                    });
                 }
             });
+    }
+
+    window.deleteBroadcast = function (id) {
+        if (confirm("Delete this broadcast?")) {
+            fetch('/delete_broadcast', { method: 'POST', body: `id=${id}` })
+                .then(() => fetchBroadcasts());
+        }
+    };
+
+    function fetchClassStudents() {
+        const tbody = document.querySelector('#student-status-section tbody');
+        if (!tbody) return;
+        fetch('/get_students').then(res => res.text()).then(data => {
+            tbody.innerHTML = "";
+            const rows = data.split(';');
+            rows.forEach(r => {
+                if (!r) return;
+                const [code, name, loc, status] = r.split('|');
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${code}</td>
+                    <td>${name}</td>
+                    <td>${loc}</td>
+                    <td><span class="badge ${status === 'Safe' ? 'success' : (status === 'Missing' ? 'warning' : 'info')}">${status}</span></td>
+                    <td>
+                        <select onchange="updateStudentStatus('${code}', this.value)">
+                            <option value="">Update Status...</option>
+                            <option value="Safe">Mark Safe</option>
+                            <option value="Missing">Mark Missing</option>
+                            <option value="Injured">Requires Aid</option>
+                        </select>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+    }
+
+    window.updateStudentStatus = function (code, status) {
+        if (!status) return;
+        fetch('/update_student_status', {
+            method: 'POST',
+            body: `student_id=${code}&status=${status}`
+        }).then(() => {
+            alert("Status Updated");
+            fetchClassStudents();
+        });
+    };
+
+    const broadcastForm = document.getElementById('broadcastForm');
+    if (broadcastForm) {
+        broadcastForm.onsubmit = function (e) {
+            e.preventDefault();
+            const to = this.querySelector('select').value;
+            const msg = this.querySelector('textarea').value;
+            fetch('/broadcast', {
+                method: 'POST',
+                body: `to=${to}&message=${msg}`
+            }).then(() => {
+                alert("Broadcast Sent!");
+                this.reset();
+                fetchBroadcasts();
+            });
         };
+        // Initial load
+        fetchBroadcasts();
+        fetchClassStudents();
+    }
+
+    // Check if on lecturer page
+    if (document.querySelector('.logo_name') && document.querySelector('.logo_name').innerText.includes("Lecturer")) {
+        fetchClassStudents();
+        fetchBroadcasts();
     }
 
     setTimeout(initMiniMap, 500);
