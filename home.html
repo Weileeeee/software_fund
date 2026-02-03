@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | UniSafe 360</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+
+    <nav class="sidebar">
+        <div class="logo-details"><i class='bx bxs-shield-plus'></i><span class="logo_name">UniSafe 360</span></div>
+        <ul class="nav-links">
+            <li><a href="#" class="nav-link active" data-target="dashboard-section"><i
+                        class='bx bxs-dashboard'></i><span class="link_name">Dashboard</span></a></li>
+            <li><a href="#" class="nav-link" data-target="incidents-section"><i class='bx bxs-report'></i><span
+                        class="link_name">Incidents</span></a></li>
+            <li><a href="#" class="nav-link" data-target="evacuation-section"><i class='bx bxs-user-check'></i><span
+                        class="link_name">Evacuation</span></a></li>
+            <li><a href="#" class="nav-link" data-target="residence-section"><i class='bx bxs-home-heart'></i><span
+                        class="link_name">Residence</span></a></li>
+            <li class="log_out"><a href="login.html"><i class='bx bx-log-out'></i><span class="link_name">Log
+                        Out</span></a></li>
+        </ul>
+    </nav>
+
+    <section class="home-section">
+        <nav class="top-navbar">
+            <div class="sidebar-button"><i class='bx bx-menu sidebarBtn'></i><span class="dashboard">Campus Security
+                    System</span></div>
+            <div class="profile-details"><span class="admin_name">Welcome, User</span><i class='bx bxs-user-circle'></i>
+            </div>
+        </nav>
+
+        <div class="home-content">
+
+            <!-- 1. DASHBOARD -->
+            <div id="dashboard-section" class="tab-content active">
+                <div class="status-banner normal">
+                    <div class="status-icon"><i class='bx bxs-check-shield'></i></div>
+                    <div class="status-text">
+                        <h3>System Status: NORMAL</h3>
+                        <p>No active threats.</p>
+                    </div>
+                </div>
+                <div class="overview-boxes">
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">My Status</div>
+                            <div class="indicator success">Safe</div>
+                        </div><button class="btn-action btn-safe">Update</button>
+                    </div>
+                    <div class="box" id="report-box">
+                        <div class="right-side">
+                            <div class="box-topic">Report Incident</div>
+                            <div class="text-muted">Witnessed something?</div>
+                        </div><button class="btn-action btn-report" id="dashReportBtn">File Report</button>
+                    </div>
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">Emergency</div>
+                            <div class="number">999</div>
+                        </div><i class='bx bxs-phone-call cart two'></i>
+                    </div>
+                    <!-- WARDEN SPECIFIC BOX -->
+                    <div class="box" id="warden-dash-panel" style="display:none; border-left: 5px solid #e67e22;">
+                        <div class="right-side">
+                            <div class="box-topic">Warden Log</div>
+                            <div class="text-muted">Detailed Report</div>
+                        </div>
+                        <button class="btn-primary" id="wardenReportBtn"
+                            style="background-color: #e67e22; margin-top:10px;">Log New Incident</button>
+                    </div>
+                </div>
+                <div class="details-grid">
+                    <div class="map-preview">
+                        <div class="card-header">
+                            <h2>Map Preview</h2>
+                        </div>
+                        <div class="map-container">
+                            <div id="mini-map"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. INCIDENTS -->
+            <div id="incidents-section" class="tab-content">
+                <div class="card-header-flex">
+                    <h2>Incidents</h2><button class="btn-primary" id="openModalBtn">+ Report</button>
+                </div>
+                <div id="security-panel" class="table-card" style="display:none;">
+                    <div class="card-header">
+                        <h3 style="color:#e74c3c;">Pending Approvals</h3>
+                    </div>
+                    <table class="full-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Loc</th>
+                                <th>Time</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pending-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="table-card" style="margin-top:20px;">
+                    <div class="card-header">
+                        <h3>Active Incidents</h3>
+                    </div>
+                    <table class="full-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Loc</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="active-tbody"></tbody>
+                    </table>
+                    <div class="map-container-large">
+                        <div id="main-map"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. EVACUATION -->
+            <div id="evacuation-section" class="tab-content">
+                <div class="card-header-flex">
+                    <h2>Evacuation Log</h2>
+                    <!-- Student Button (Hidden by default) -->
+                    <button class="btn-primary" id="iAmSafeBtn" style="background-color: #27ae60; display:none;">
+                        <i class='bx bx-check-circle'></i> I Am Safe
+                    </button>
+                </div>
+
+                <!-- WARDEN CONTROL PANEL -->
+                <div id="warden-panel" class="table-card" style="margin-bottom: 20px; display:none; border-left: 5px solid #e74c3c;">
+    <div class="card-header">
+        <h3 style="color:#e74c3c;">⚠️ Emergency Control</h3>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; padding:10px; flex-wrap: wrap;">
+        <select id="evacBlock" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc; cursor: pointer;">
+            <option value="All">All Blocks</option>
+            <option value="Block A">Block A</option>
+            <option value="Block B">Block B</option>
+            <option value="Block C">Block C</option>
+            <option value="Block D">Block D</option>
+        </select>
+
+        <button class="btn-primary" id="startEvacBtn" style="background-color: #c0392b;">🚨 START EVACUATION</button>
+        <button class="btn-primary" id="genReportBtn" style="background-color: #34495e;">📄 Generate Unsafe List (.txt)</button>
+    </div>
+</div>
+
+                <div class="overview-boxes">
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">Missing</div>
+                            <div class="number" id="count-missing" style="color:red;">0</div>
+                        </div>
+                    </div>
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">Safe</div>
+                            <div class="number" id="count-safe" style="color:green;">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-card">
+                    <table class="full-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Block</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="evacuation-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. RESIDENCE MONITORING (Warden Only) -->
+            <div id="residence-section" class="tab-content">
+                <div class="card-header-flex">
+                    <h2>Residence Monitoring</h2>
+                    <input type="text" id="resSearch" placeholder="Search Name or Room..."
+                        style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                </div>
+                <div class="table-card">
+                    <table class="full-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Room</th>
+                                <th>Status</th>
+                                <th>Contact</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="residence-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- REPORT MODAL (Basic / Student) -->
+    <div id="reportModal" class="modal">
+        <div class="modal-content"><span class="close-btn">&times;</span>
+            <h2>Report Incident</h2>
+            <form id="incidentForm">
+                <div class="input-group"><label>Type</label><input type="text" id="inType" name="type" required></div>
+                <div class="input-group"><label>Location</label><input type="text" id="reportLocation" name="location" required></div>
+                <div class="input-group"><label>Time</label><input type="datetime-local" id="inTime" name="time" required></div><button
+                    type="submit" class="btn-submit">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- WARDEN REPORT MODAL (Detailed) -->
+    <div id="wardenReportModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeWardenModal">&times;</span>
+            <h2>Warden Incident Log</h2>
+            <form id="wardenIncidentForm">
+                <div class="input-group">
+                    <label>Incident Type</label>
+                    <input type="text" id="wInType" placeholder="e.g. Fire, Medical, Security" required>
+                </div>
+                <div class="input-group">
+                    <label>Location</label>
+                    <input type="text" id="wInLoc" required>
+                </div>
+                <div class="input-group">
+                    <label>Time of Occurrence</label>
+                    <input type="time" id="wInTime" required>
+                </div>
+                <div class="input-group">
+                    <label>Severity Level</label>
+                    <select id="wInSev" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="Low">Low</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Detailed Description</label>
+                    <textarea id="wInDesc" rows="4" placeholder="Enter full details of the incident..."
+                        style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
+                        required></textarea>
+                </div>
+                <div class="input-group">
+                    <label>Evidence (URL / Filename)</label>
+                    <input type="text" id="wInEvid" placeholder="Optional evidence link">
+                </div>
+                <button type="submit" class="btn-submit" style="background-color: #e67e22;">Log Incident</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- STATUS UPDATE MODAL -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeStatusModal()">&times;</span>
+            <h2>Update Stay Status</h2>
+            <form id="statusForm">
+                <input type="hidden" id="statusUserId">
+                <h3 id="statusUserName">Student Name</h3>
+                <div class="input-group">
+                    <label>New Status</label>
+                    <select id="statusSelect"
+                        style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        <option value="Present">Present</option>
+                        <option value="On Leave">On Leave</option>
+                        <option value="Weekend Home">Weekend Home</option>
+                        <option value="Medical Leave">Medical Leave</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

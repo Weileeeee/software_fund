@@ -1,0 +1,17 @@
+Connecting to DB...
+Connected!
+Total Users: 11
+
+--- User List (ID | Name | Role | Block) ---
+1 | ali_student | Student | NULL | 60136491330
+5 | security_admin | SecurityOfficer | NULL | NULL
+9 | securityadmin | SecurityOfficer | NULL | NULL
+10 | adminsec02 | Admin | NULL | NULL
+12 | yulun_student | Student | Block A | 6011110867951
+16 | yulun_student02 | Student | NULL | 60136491330
+18 | yulun_student03 | Student | NULL | 60136491330
+19 | admin | Admin | NULL | NULL
+20 | yihern | Student | NULL | 60136491330
+22 | admin02 | Admin | NULL | NULL
+23 | wardenn | Warden | NULL | NULL
+------------------------------------------

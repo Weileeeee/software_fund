@@ -11,24 +11,31 @@ CREATE TABLE Users (
     email VARCHAR(100) NOT NULL,
     role ENUM('Student', 'Warden', 'Lecturer', 'SecurityOfficer', 'Admin') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    is_hostel_resident BOOLEAN DEFAULT FALSE;
+    block VARCHAR(10) DEFAULT NULL;
+);
+USE CampusSecurityDB;
+
+-- 1. Create the missing table
+CREATE TABLE IF NOT EXISTS EvacuationLogs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    status ENUM('Missing', 'Safe') DEFAULT 'Missing',
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
 );
 
+-- 2. Populate it with all students (Starts everyone as Safe)
+TRUNCATE TABLE EvacuationLogs;
+
+INSERT INTO EvacuationLogs (user_id, status) 
+SELECT user_id, 'Safe' 
+FROM Users 
+WHERE role = 'Student';
 -- 3. STUDENT PROFILES (Incorporating Safety Status & Assigned Staff)
 -- Per Section 3.1.1: System records updates by staff
-CREATE TABLE StudentProfiles (
-    profile_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
-    student_code VARCHAR(20) UNIQUE NOT NULL, 
-    residence_block VARCHAR(50), 
-    room_number VARCHAR(20),
-    class_group VARCHAR(50), -- Replaces enrollment table; Lecturer targets this group
-    residency_status ENUM('Present', 'On Leave', 'Weekend Home') DEFAULT 'Present',
-    safety_status ENUM('Safe', 'Missing', 'Requires Assistance', 'Unknown') DEFAULT 'Unknown',
-    last_status_updated_by INT, 
-    last_status_update_time TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (last_status_updated_by) REFERENCES Users(user_id)
-);
+
+
 
 -- 4. INCIDENT MANAGEMENT (For the Interactive Map)
 CREATE TABLE Incidents (
@@ -86,12 +93,15 @@ CREATE TABLE EvacuationAttendance (
     FOREIGN KEY (student_id) REFERENCES Users(user_id)
 );
 
--- 7. LECTURER INSTRUCTIONS
-CREATE TABLE LecturerInstructions (
-    instruction_id INT PRIMARY KEY AUTO_INCREMENT,
-    lecturer_id INT NOT NULL,
-    target_class_group VARCHAR(50), 
-    instruction_content TEXT NOT NULL,
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (lecturer_id) REFERENCES Users(user_id)
-);
+TRUNCATE TABLE EvacuationLogs;
+
+INSERT INTO EvacuationLogs (user_id, status) 
+SELECT user_id, 'Safe' 
+FROM Users 
+WHERE role = 'Student';
+ALTER TABLE Users ADD COLUMN stay_status VARCHAR(50) DEFAULT 'Present';
+
+ALTER TABLE Incidents 
+ADD COLUMN description TEXT,
+ADD COLUMN severity ENUM('Low', 'Medium', 'High', 'Critical') DEFAULT 'Medium',
+ADD COLUMN evidence_path VARCHAR(255);
