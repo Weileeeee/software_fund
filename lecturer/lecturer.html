@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecturer Portal | UniSafe 360</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+
+    <nav class="sidebar">
+        <div class="logo-details">
+            <i class='bx bxs-graduation'></i>
+            <span class="logo_name">Lecturer View</span>
+        </div>
+        <ul class="nav-links">
+            <li>
+                <a href="#" class="nav-link active" data-target="dashboard-section">
+                    <i class='bx bxs-dashboard'></i>
+                    <span class="link_name">Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" class="nav-link" data-target="lecturer-evacuation-section">
+                    <i class='bx bxs-user-check'></i>
+                    <span class="link_name">Evacuation Control</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" class="nav-link" data-target="communication-section">
+                    <i class='bx bxs-megaphone'></i>
+                    <span class="link_name">Broadcast</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" class="nav-link" data-target="incidents-section">
+                    <i class='bx bxs-report'></i>
+                    <span class="link_name">Report Incident</span>
+                </a>
+            </li>
+            <li class="log_out">
+                <a href="login.html">
+                    <i class='bx bx-log-out'></i>
+                    <span class="link_name">Log Out</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <section class="home-section">
+        <nav class="top-navbar">
+            <div class="sidebar-button">
+                <i class='bx bx-menu sidebarBtn'></i>
+                <span class="dashboard">Lecturer Portal</span>
+            </div>
+            <div class="profile-details">
+                <span class="admin_name">Dr. Yee Yung Sien</span>
+                <i class='bx bxs-user-rectangle'></i>
+            </div>
+        </nav>
+
+        <div class="home-content">
+
+            <div id="dashboard-section" class="tab-content active">
+                <div class="status-banner normal">
+                    <div class="status-icon"><i class='bx bxs-check-shield'></i></div>
+                    <div class="status-text">
+                        <h3>System Status: NORMAL</h3>
+                        <p>No active emergencies. Please keep attendance records updated.</p>
+                    </div>
+                </div>
+
+                <div class="overview-boxes">
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">My Classes</div>
+                            <div class="number">3</div>
+                            <div class="text-muted">Active Sessions</div>
+                        </div>
+                        <i class='bx bxs-book-reader cart'></i>
+                    </div>
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">Total Students</div>
+                            <div class="number">124</div>
+                            <div class="text-muted">Assigned to you</div>
+                        </div>
+                        <i class='bx bxs-group cart two'></i>
+                    </div>
+                    <div class="box">
+                        <div class="right-side">
+                            <div class="box-topic">Pending Reports</div>
+                            <div class="indicator warning">2 Unread</div>
+                        </div>
+                        <button class="btn-action btn-report" onclick="switchToTab('incidents-section')">View</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="lecturer-evacuation-section" class="tab-content">
+                <div class="card-header">
+                    <h2>Evacuation Control (Lecturer)</h2>
+                </div>
+
+                <div class="recent-alerts">
+                    <div style="display:flex; gap:10px; align-items:center; padding:10px; flex-wrap:wrap;">
+                        <select id="lecEvacClass" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc; cursor: pointer;">
+                            <option value="All">All Assigned Classes</option>
+                            <option value="TCS3014">TCS3014 - Software Engineering</option>
+                            <option value="TCS3024">TCS3024 - Network Security</option>
+                        </select>
+
+                        <button class="btn-primary" id="startClassEvacBtn" style="background-color: #c0392b;">🚨 START CLASS EVACUATION</button>
+                        <button class="btn-primary" id="lecGenReportBtn" style="background-color: #34495e;">📄 Generate Unsafe List (.txt)</button>
+                    </div>
+
+                    <div class="overview-boxes" style="margin-top:12px;">
+                        <div class="box">
+                            <div class="right-side">
+                                <div class="box-topic">Missing</div>
+                                <div class="number" id="lec-evac-count-missing" style="color:red;">0</div>
+                            </div>
+                        </div>
+                        <div class="box">
+                            <div class="right-side">
+                                <div class="box-topic">Safe</div>
+                                <div class="number" id="lec-evac-count-safe" style="color:green;">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-card" style="margin-top: 20px;">
+                        <div class="card-header">
+                            <h3>Student List</h3>
+                            <button class="btn-sm" style="padding: 5px 10px; cursor: pointer;" onclick="fetchClassStudents()">Refresh List</button>
+                        </div>
+                        <div style="color: #666; padding: 10px; background: #f5f5f5; margin-bottom: 10px; border-radius: 4px;">
+                            <small>💡 <strong>Tip:</strong> Open Browser DevTools (F12) → Console to see detailed debug information</small>
+                        </div>
+                        <table class="full-table">
+                            <thead>
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Name</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lecturer-status-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="communication-section" class="tab-content">
+                <div class="card-header">
+                    <h2>Broadcast Instructions</h2>
+                </div>
+                <div class="recent-alerts" style="max-width: 800px;">
+                    <form id="broadcastForm">
+                        <div class="input-group">
+                            <label>To Class/Group</label>
+                            <select class="form-control" required>
+                                <option value="all">All Assigned Classes</option>
+                                <option value="TCS3014">TCS3014 - Software Engineering</option>
+                                <option value="TCS3024">TCS3024 - Network Security</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Urgency Level</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="urgency" value="info" checked> Info</label>
+                                <label><input type="radio" name="urgency" value="warning"> Warning</label>
+                                <label><input type="radio" name="urgency" value="critical"> Critical</label>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Instruction Message</label>
+                            <textarea rows="5" placeholder="e.g., Please remain in the classroom and lock the doors. Do not panic." required></textarea>
+                        </div>
+
+                        <button type="submit" class="btn" style="width: 200px;">
+                            <i class='bx bxs-send'></i> Send Broadcast
+                        </button>
+                    </form>
+                    </div>
+            </div>
+
+            <div id="incidents-section" class="tab-content">
+                <div class="card-header">
+                    <h2>Incident Reporting</h2>
+                    <button class="btn" id="openModalBtn" style="background: var(--accent-color);">+ Report Incident</button>
+                </div>
+
+                <!-- Live Incident Map -->
+                <div style="margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h3 style="margin-top: 0; margin-bottom: 10px;">📍 Live Incident Map</h3>
+                    <div id="lecturer-map" style="height: 400px; width: 100%; border-radius: 8px; border: 1px solid #ddd;"></div>
+                    <small style="color: #666; display: block; margin-top: 8px;">🔵 Blue marker = Your location | 📍 Red markers = Approved incidents</small>
+                </div>
+
+                <!-- Reported Incidents Table -->
+                <div class="recent-alerts">
+                    <h3>All Incidents</h3>
+                    <table class="full-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Location</th>
+                                <th>Time</th>
+                                <th>Reporter</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="active-tbody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 20px; color: #999;">Loading incidents...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Log Incident</h2>
+            <form id="incidentForm">
+                <div class="input-group">
+                    <label>Incident Type</label>
+                    <input type="text" id="inType" name="type" required>
+                </div>
+                <div class="input-group">
+                    <label>Location</label>
+                    <input type="text" id="inLoc" name="location" required>
+                </div>
+                <div class="input-group">
+                    <label>Time</label>
+                    <input type="time" id="inTime" name="time" required>
+                </div>
+                <button type="submit" class="btn" style="width:100%;">Submit Report</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <style>
+        #lecturer-map {
+            z-index: 1 !important;
+        }
+        #lecturer-map .leaflet-container {
+            z-index: 1 !important;
+        }
+    </style>
+    <script>
+        // Inline script to handle tab switching for this file
+        function switchToTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+
+            // Re-render map if switching to incidents
+            if (tabId === 'incidents-section') {
+                setTimeout(() => {
+                    if (typeof initMainMap === "function") initMainMap();
+                }, 200);
+            }
+        }
+    </script>
+</body>
+</html>
